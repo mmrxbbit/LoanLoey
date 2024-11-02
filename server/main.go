@@ -11,7 +11,6 @@ import (
     "golang.org/x/crypto/bcrypt"
 )
 
-// Account represents an account in the database
 type Account struct {
     Username  string `json:"username"`
     Password  string `json:"password"`
@@ -23,7 +22,6 @@ type Account struct {
     Address   string `json:"address"`
 }
 
-// Admin represents an admin in the database
 type Admin struct {
     Username  string `json:"username"`
     Password  string `json:"password"`
@@ -31,63 +29,64 @@ type Admin struct {
     LastName  string `json:"last_name"`
 }
 
-// CreateUser inserts a new user into the database
-func CreateUser(db *sql.DB, account Account) error {
+type Database struct {
+    *sql.DB
+}
+
+func (db *Database) Signup(account Account) error {
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(account.Password), bcrypt.DefaultCost)
     if err != nil {
-        return fmt.Errorf("CreateUser: %v", err)
+        return fmt.Errorf("hashing password: %w", err)
     }
 
     query := `INSERT INTO account (Username, PasswordHash) VALUES (?, ?)`
     result, err := db.Exec(query, account.Username, hashedPassword)
     if err != nil {
-        return fmt.Errorf("CreateUser: %v", err)
+        return fmt.Errorf("inserting account: %w", err)
     }
 
     accountID, err := result.LastInsertId()
     if err != nil {
-        return fmt.Errorf("CreateUser: %v", err)
+        return fmt.Errorf("getting last insert ID: %w", err)
     }
 
     userQuery := `INSERT INTO user (AccountID, FirstName, LastName, IDCard, DOB, PhoneNo, Address, CreditScore) 
                   VALUES (?, ?, ?, ?, ?, ?, ?, 0)`
     _, err = db.Exec(userQuery, accountID, account.FirstName, account.LastName, account.IDCard, account.DOB, account.PhoneNo, account.Address)
     if err != nil {
-        return fmt.Errorf("CreateUser: %v", err)
+        return fmt.Errorf("inserting user: %w", err)
     }
 
     return nil
 }
 
-// CreateAdmin inserts a new admin into the database
-func CreateAdmin(db *sql.DB, admin Admin) error {
+func (db *Database) CreateAdmin(admin Admin) error {
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(admin.Password), bcrypt.DefaultCost)
     if err != nil {
-        return fmt.Errorf("CreateAdmin: %v", err)
+        return fmt.Errorf("hashing password: %w", err)
     }
 
     query := `INSERT INTO account (Username, PasswordHash) VALUES (?, ?)`
     result, err := db.Exec(query, admin.Username, hashedPassword)
     if err != nil {
-        return fmt.Errorf("CreateAdmin: %v", err)
+        return fmt.Errorf("inserting account: %w", err)
     }
 
     accountID, err := result.LastInsertId()
     if err != nil {
-        return fmt.Errorf("CreateAdmin: %v", err)
+        return fmt.Errorf("getting last insert ID: %w", err)
     }
 
     adminQuery := `INSERT INTO admin (AccountID, FirstName, LastName) VALUES (?, ?, ?)`
     _, err = db.Exec(adminQuery, accountID, admin.FirstName, admin.LastName)
     if err != nil {
-        return fmt.Errorf("CreateAdmin: %v", err)
+        return fmt.Errorf("inserting admin: %w", err)
     }
 
     return nil
 }
 
-// Login handles user login and redirects based on role
-func Login(db *sql.DB, username, password string) (string, error) {
+func (db *Database) Login(username, password string) (string, error) {
     var storedHash string
     var accountID int64
     var isAdmin bool
@@ -95,20 +94,17 @@ func Login(db *sql.DB, username, password string) (string, error) {
     query := `SELECT PasswordHash, AccountID FROM account WHERE Username = ?`
     err := db.QueryRow(query, username).Scan(&storedHash, &accountID)
     if err != nil {
-        log.Printf("Error querying database for username %s: %v", username, err)
-        return "", fmt.Errorf("Login: %v", err)
+        return "", fmt.Errorf("querying for username %s: %w", username, err)
     }
 
     if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
-        log.Println("Login: Invalid credentials")
-        return "", fmt.Errorf("Login: invalid credentials")
+        return "", fmt.Errorf("invalid credentials: %w", err)
     }
 
     adminQuery := `SELECT COUNT(*) FROM admin WHERE AccountID = ?`
     err = db.QueryRow(adminQuery, accountID).Scan(&isAdmin)
     if err != nil {
-        log.Printf("Error checking admin status: %v", err)
-        return "", fmt.Errorf("Login: %v", err)
+        return "", fmt.Errorf("checking admin status: %w", err)
     }
 
     if isAdmin {
@@ -124,23 +120,22 @@ func main() {
     }
     defer db.Close()
 
-    // Create User Handler
-    http.HandleFunc("/createUser", func(w http.ResponseWriter, r *http.Request) {
+    database := &Database{db}
+
+    http.HandleFunc("/signup", func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost {
             http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
             return
         }
 
         var account Account
-        err := json.NewDecoder(r.Body).Decode(&account)
-        if err != nil {
+        if err := json.NewDecoder(r.Body).Decode(&account); err != nil {
             http.Error(w, "Invalid request body", http.StatusBadRequest)
             return
         }
 
-        err = CreateUser(db, account)
-        if err != nil {
-            http.Error(w, fmt.Sprintf("CreateUser failed: %v", err), http.StatusInternalServerError)
+        if err := database.Signup(account); err != nil {
+            http.Error(w, fmt.Sprintf("Signup failed: %v", err), http.StatusInternalServerError)
             return
         }
 
@@ -149,7 +144,6 @@ func main() {
         json.NewEncoder(w).Encode(response)
     })
 
-    // Create Admin Handler
     http.HandleFunc("/createAdmin", func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost {
             http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -157,14 +151,12 @@ func main() {
         }
 
         var admin Admin
-        err := json.NewDecoder(r.Body).Decode(&admin)
-        if err != nil {
+        if err := json.NewDecoder(r.Body).Decode(&admin); err != nil {
             http.Error(w, "Invalid request body", http.StatusBadRequest)
             return
         }
 
-        err = CreateAdmin(db, admin)
-        if err != nil {
+        if err := database.CreateAdmin(admin); err != nil {
             http.Error(w, fmt.Sprintf("CreateAdmin failed: %v", err), http.StatusInternalServerError)
             return
         }
@@ -174,7 +166,6 @@ func main() {
         json.NewEncoder(w).Encode(response)
     })
 
-    // Login Handler
     http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost {
             http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -185,35 +176,30 @@ func main() {
             Username string `json:"username"`
             Password string `json:"password"`
         }
-        
-        err := json.NewDecoder(r.Body).Decode(&credentials)
-        if err != nil {
+
+        if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
             http.Error(w, "Invalid request body", http.StatusBadRequest)
             return
         }
 
-        log.Printf("Login attempt for user: %s", credentials.Username)
-
-        role, err := Login(db, credentials.Username, credentials.Password)
+        role, err := database.Login(credentials.Username, credentials.Password)
         if err != nil {
             http.Error(w, fmt.Sprintf("Login failed: %v", err), http.StatusUnauthorized)
             return
         }
 
         // Redirect based on the role
+        redirectPath := "/homepage"
         if role == "admin" {
-            http.Redirect(w, r, "/adminpage", http.StatusFound)
-        } else {
-            http.Redirect(w, r, "/homepage", http.StatusFound)
+            redirectPath = "/adminpage"
         }
+        http.Redirect(w, r, redirectPath, http.StatusFound)
     })
 
-    // Admin Page Handler
     http.HandleFunc("/adminpage", func(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintln(w, "Welcome to the Admin Page!")
     })
 
-    // Home Page Handler
     http.HandleFunc("/homepage", func(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintln(w, "Welcome to the Home Page!")
     })
