@@ -29,6 +29,16 @@ type Admin struct {
     LastName  string `json:"last_name"`
 }
 
+type UserInfo struct {
+    FirstName  string `json:"first_name"`
+    LastName   string `json:"last_name"`
+    IDCard     string `json:"id_card"`
+    DOB        string `json:"dob"`
+    PhoneNo    string `json:"phone_no"`
+    Address    string `json:"address"`
+    CreditScore int    `json:"credit_score"`
+}
+
 type Database struct {
     *sql.DB
 }
@@ -60,6 +70,7 @@ func (db *Database) Signup(account Account) error {
     return nil
 }
 
+
 func (db *Database) CreateAdmin(admin Admin) error {
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(admin.Password), bcrypt.DefaultCost)
     if err != nil {
@@ -84,6 +95,21 @@ func (db *Database) CreateAdmin(admin Admin) error {
     }
 
     return nil
+}
+
+func (db *Database) GetUserInfo(username string) (*UserInfo, error) {
+    var userInfo UserInfo
+
+    query := `SELECT u.FirstName, u.LastName, u.IDCard, u.DOB, u.PhoneNo, u.Address, u.CreditScore 
+              FROM user u
+              JOIN account a ON u.AccountID = a.AccountID
+              WHERE a.Username = ?`
+    err := db.QueryRow(query, username).Scan(&userInfo.FirstName, &userInfo.LastName, &userInfo.IDCard, &userInfo.DOB, &userInfo.PhoneNo, &userInfo.Address, &userInfo.CreditScore)
+    if err != nil {
+        return nil, fmt.Errorf("querying user info: %w", err)
+    }
+
+    return &userInfo, nil
 }
 
 func (db *Database) Login(username, password string) (string, error) {
@@ -112,6 +138,7 @@ func (db *Database) Login(username, password string) (string, error) {
     }
     return "user", nil
 }
+
 
 func main() {
     db, err := sql.Open("mysql", "root:root@tcp(localhost:8889)/loanloey")
@@ -195,6 +222,32 @@ func main() {
         }
         http.Redirect(w, r, redirectPath, http.StatusFound)
     })
+    
+
+
+
+    http.HandleFunc("/getUserInfo", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != http.MethodGet {
+            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+            return
+        }
+
+        username := r.URL.Query().Get("username")
+        if username == "" {
+            http.Error(w, "Username is required", http.StatusBadRequest)
+            return
+        }
+
+        userInfo, err := database.GetUserInfo(username)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Failed to get user info: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(userInfo)
+    })
+ 
 
     http.HandleFunc("/adminpage", func(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintln(w, "Welcome to the Admin Page!")
