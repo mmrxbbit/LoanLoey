@@ -1,14 +1,15 @@
 package main
 
 import (
-    "database/sql"
-    "encoding/json"
-    "fmt"
-    "log"
-    "net/http"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
 
-    _ "github.com/go-sql-driver/mysql"
-    "golang.org/x/crypto/bcrypt"
+	_ "github.com/go-sql-driver/mysql"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Account struct {
@@ -70,6 +71,21 @@ func (db *Database) Signup(account Account) error {
     return nil
 }
 
+func (db *Database) GetUserInfoByID(userID int) (*UserInfo, error) {
+    var userInfo UserInfo
+
+    query := `SELECT u.FirstName, u.LastName, u.IDCard, u.DOB, u.PhoneNo, u.Address, u.CreditScore 
+              FROM user u
+              WHERE u.UserID = ?`
+    err := db.QueryRow(query, userID).Scan(&userInfo.FirstName, &userInfo.LastName, &userInfo.IDCard, &userInfo.DOB, &userInfo.PhoneNo, &userInfo.Address, &userInfo.CreditScore)
+    if err != nil {
+        return nil, fmt.Errorf("querying user info: %w", err)
+    }
+
+    return &userInfo, nil
+}
+
+
 
 func (db *Database) CreateAdmin(admin Admin) error {
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(admin.Password), bcrypt.DefaultCost)
@@ -97,20 +113,7 @@ func (db *Database) CreateAdmin(admin Admin) error {
     return nil
 }
 
-func (db *Database) GetUserInfo(username string) (*UserInfo, error) {
-    var userInfo UserInfo
 
-    query := `SELECT u.FirstName, u.LastName, u.IDCard, u.DOB, u.PhoneNo, u.Address, u.CreditScore 
-              FROM user u
-              JOIN account a ON u.AccountID = a.AccountID
-              WHERE a.Username = ?`
-    err := db.QueryRow(query, username).Scan(&userInfo.FirstName, &userInfo.LastName, &userInfo.IDCard, &userInfo.DOB, &userInfo.PhoneNo, &userInfo.Address, &userInfo.CreditScore)
-    if err != nil {
-        return nil, fmt.Errorf("querying user info: %w", err)
-    }
-
-    return &userInfo, nil
-}
 
 func (db *Database) Login(username, password string) (string, error) {
     var storedHash string
@@ -193,6 +196,41 @@ func main() {
         json.NewEncoder(w).Encode(response)
     })
 
+    http.HandleFunc("/getUserInfo", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != http.MethodGet {
+            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+            return
+        }
+    
+        userIDStr := r.URL.Query().Get("userID")
+        log.Printf("Received UserID: %s", userIDStr) // Log the received UserID
+    
+        if userIDStr == "" {
+            http.Error(w, "UserID is required", http.StatusBadRequest)
+            return
+        }
+    
+        // Convert userID from string to int
+        userID, err := strconv.Atoi(userIDStr)
+        if err != nil {
+            log.Printf("Error converting UserID: %v", err) // Log the error
+
+            http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+            return
+        }
+    
+        // Now call the GetUserInfo function with the userID
+        userInfo, err := database.GetUserInfoByID(userID) // Adjust this function if needed
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Failed to get user info: %v", err), http.StatusInternalServerError)
+            return
+        }
+    
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(userInfo)
+    })
+    
+
     http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
         if r.Method != http.MethodPost {
             http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -224,29 +262,7 @@ func main() {
     })
     
 
-
-
-    http.HandleFunc("/getUserInfo", func(w http.ResponseWriter, r *http.Request) {
-        if r.Method != http.MethodGet {
-            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-            return
-        }
-
-        username := r.URL.Query().Get("username")
-        if username == "" {
-            http.Error(w, "Username is required", http.StatusBadRequest)
-            return
-        }
-
-        userInfo, err := database.GetUserInfo(username)
-        if err != nil {
-            http.Error(w, fmt.Sprintf("Failed to get user info: %v", err), http.StatusInternalServerError)
-            return
-        }
-
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(userInfo)
-    })
+   
  
 
     http.HandleFunc("/adminpage", func(w http.ResponseWriter, r *http.Request) {
