@@ -213,6 +213,35 @@ func (db *Database) GetUserInfo(userID int) (*UserAccount, error) {
 	return &userAccount, nil
 }
 
+// GetUserCreditLevel retrieves the credit level of a user based on their credit score
+func (db *Database) GetUserCreditLevel(userID int) (string, error) {
+	var creditScore int
+
+	// Query to get the credit score of the user
+	query := `SELECT CreditScore FROM user WHERE UserID = ?`
+	err := db.QueryRow(query, userID).Scan(&creditScore)
+	if err != nil {
+		return "", fmt.Errorf("querying credit score: %w", err)
+	}
+
+	// Determine the credit level based on the credit score
+	var creditLevel string
+	fmt.Println("creditLevel: ",creditScore,creditLevel)
+	switch {
+	case creditScore >= 5:
+		creditLevel = "red"
+	case creditScore >= 3:
+		creditLevel = "yellow"
+	default:
+		creditLevel = "green"
+	
+		
+	fmt.Println("creditLevel: ",creditScore,creditLevel)
+	return creditLevel, nil
+}
+return creditLevel, nil
+}
+
 //ADMIN
 
 // CreateAdmin function to create a new admin account
@@ -223,7 +252,7 @@ func (db *Database) CreateAdmin(admin Admin) error {
 		return fmt.Errorf("hashing password: %w", err)
 	}
 
-	// Insert admin account into the database
+	// Insert account into the database
 	query := `INSERT INTO account (Username, PasswordHash) VALUES (?, ?)`
 	result, err := db.Exec(query, admin.Username, hashedPassword)
 	if err != nil {
@@ -236,7 +265,7 @@ func (db *Database) CreateAdmin(admin Admin) error {
 		return fmt.Errorf("getting last insert ID: %w", err)
 	}
 
-	// Insert admin details
+	// Insert admin details into the admin table
 	adminQuery := `INSERT INTO admin (AccountID, FirstName, LastName) VALUES (?, ?, ?)`
 	_, err = db.Exec(adminQuery, accountID, admin.FirstName, admin.LastName)
 	if err != nil {
@@ -770,6 +799,37 @@ func main() {
 			return
 		}
 	})
+
+	// HTTP route to get user credit level
+	http.HandleFunc("/getUserCreditLevel", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userIDStr := r.URL.Query().Get("userID")
+		if userIDStr == "" {
+			http.Error(w, "UserID is required", http.StatusBadRequest)
+			return
+		}
+
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil {
+			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+			return
+		}
+
+		creditLevel, err := database.GetUserCreditLevel(userID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get credit level: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]string{"credit_level": creditLevel}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
+		
 
 	//ADMIN
 	// HTTP route for admin creation
