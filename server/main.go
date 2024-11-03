@@ -51,89 +51,134 @@ type LoanResponse struct {
 	InitialAmount  float64 `json:"initial_amount"`
 	InterestRate   float64 `json:"interest_rate"`
 	InterestAmount float64 `json:"interest"`
-	UserID         int     `json:"user_id"`
 }
 
 // Database struct wraps the SQL database connection
 type Database struct {
 	*sql.DB
 }
+
+func calculateInterestRate(amount float64) float64 {
+	switch {
+	case amount > 20000:
+		return 0.05 // 5%
+	case amount > 10000:
+		return 0.04 // 4%
+	default:
+		return 0.03 // 3%
+	}
+}
+
+func calculateLoanDetails(amount float64, dueDate time.Time) (totalAmount float64, interestAmount float64, interestRate float64) {
+	interestRate = calculateInterestRate(amount)
+	durationDays := int(time.Until(dueDate).Hours() / 24)
+	if durationDays > 365 {
+		interestRate += 0.01 // long-term loan penalty
+		interestRate = roundToTwoDecimalPlaces(interestRate)
+	}
+
+	interestAmount = amount * interestRate
+	totalAmount = amount + interestAmount
+	return totalAmount, interestAmount, interestRate
+}
+
 func roundToTwoDecimalPlaces(value float64) float64 {
 	return math.Round(value*100) / 100
 }
 
-func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
-	const (
-		lowInterestRate      = 0.03 // 3%
-		midInterestRate      = 0.04 // 4%
-		highInterestRate     = 0.05 // 5%
-		longTermLoanPenalty  = 0.01 // 1% penalty for loans longer than a year
-	)
 
-	// Calculate the interest rate based on the initial amount
-	var interestRate float64
-	switch {
-	case request.InitialAmount > 20000:
-		interestRate = highInterestRate
-	case request.InitialAmount > 10000:
-		interestRate = midInterestRate
-	default:
-		interestRate = lowInterestRate
+func getUserLoans(db *Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userIDStr := r.URL.Query().Get("userID")
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil || userID <= 0 {
+			http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			return
+		}
+
+		query := `SELECT Amount, Duedate FROM loan WHERE UserID = ?`
+		rows, err := db.Query(query, userID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("querying loans: %v", err), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		var loans []LoanResponse
+
+		for rows.Next() {
+			var amount float64
+			var dueDateStr string
+
+			if err := rows.Scan(&amount, &dueDateStr); err != nil {
+				http.Error(w, fmt.Sprintf("scanning loan row: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("parsing due date: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			totalAmount, interestAmount, interestRate := calculateLoanDetails(amount, dueDate)
+
+			loans = append(loans, LoanResponse{
+				TotalAmount:    totalAmount,
+				DueDateTime:    dueDate.Format("2006-01-02 15:04:05"),
+				InitialAmount:  amount,
+				InterestRate:   interestRate,
+				InterestAmount: interestAmount,
+			})
+		}
+
+		if err := rows.Err(); err != nil {
+			http.Error(w, fmt.Sprintf("error iterating rows: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if len(loans) == 0 {
+			json.NewEncoder(w).Encode([]LoanResponse{})
+			return
+		}
+		json.NewEncoder(w).Encode(loans)
 	}
+}
 
-	// Parse DueDateTime from request
+func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 	dueDateTime, err := time.Parse("2006-01-02 15:04", request.DueDateTime)
 	if err != nil {
 		return LoanResponse{}, fmt.Errorf("parsing DueDateTime: %w", err)
 	}
 
-	// Calculate duration in days
-	durationDays := int(time.Until(dueDateTime).Hours() / 24)
-	if durationDays < 0 {
-		return LoanResponse{}, fmt.Errorf("DueDateTime must be in the future")
-	}
+	totalAmount, interestAmount, interestRate := calculateLoanDetails(request.InitialAmount, dueDateTime)
 
-	// Adjust interest rate for long-term loans
-	if durationDays > 365 {
-		interestRate += longTermLoanPenalty
-		interestRate = roundToTwoDecimalPlaces(interestRate)
-	}
-
-	// Calculate interest and total amount
-	interestAmount := request.InitialAmount * interestRate
-	totalAmount := request.InitialAmount + interestAmount
-
-	// Set DOProcess to the current time in Thai timezone
-	loc, err := time.LoadLocation("Asia/Bangkok") // Load Thai timezone
+	loc, err := time.LoadLocation("Asia/Bangkok")
 	if err != nil {
 		return LoanResponse{}, fmt.Errorf("loading location: %w", err)
 	}
-	doProcess := time.Now().In(loc) // Get current time in Thai timezone
+	doProcess := time.Now().In(loc)
 
-	// Format DOProcess for the database
-	doProcessFormatted := doProcess.Format("2006-01-02 15:04") // Adjusted format
-
-	// Insert loan into the database
-	query := `INSERT INTO loan (UserID, Amount, Duration, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
-	_, err = db.Exec(query, request.UserID, totalAmount, durationDays, doProcessFormatted, "pending")
+	query := `INSERT INTO loan (UserID, Amount, Duedate, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
+	_, err = db.Exec(query, request.UserID, request.InitialAmount, dueDateTime.Format("2006-01-02 15:04:05"), doProcess.Format("2006-01-02 15:04:05"), "pending")
 	if err != nil {
 		return LoanResponse{}, fmt.Errorf("inserting loan: %w", err)
 	}
 
-	// Prepare the response
-	response := LoanResponse{
+	return LoanResponse{
 		TotalAmount:    totalAmount,
 		DueDateTime:    request.DueDateTime,
 		InitialAmount:  request.InitialAmount,
 		InterestRate:   interestRate,
 		InterestAmount: interestAmount,
-		UserID:         request.UserID,
-	}
-
-	return response, nil
+	}, nil
 }
-
-
 
 
 
@@ -172,6 +217,8 @@ func (db *Database) Signup(userAccount UserAccount) error {
 
 	return nil
 }
+
+
 
 // GetUserInfoByID retrieves user information by user ID
 func (db *Database) GetUserInfoByID(userID int) (*UserAccount, error) {
@@ -289,6 +336,42 @@ func (db *Database) DeleteAccount(accountID int) error {
 
 	return nil
 }
+// GetUserTotalLoan calculates the total loan amount for a user including interest with pending status
+func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
+	query := `SELECT Amount, Duedate FROM loan WHERE UserID = ? AND Status = 'pending'`
+	rows, err := db.Query(query, userID)
+	if err != nil {
+		return 0, fmt.Errorf("querying loans: %w", err)
+	}
+	defer rows.Close()
+
+	var totalLoan float64
+
+	for rows.Next() {
+		var amount float64
+		var dueDateStr string
+
+		if err := rows.Scan(&amount, &dueDateStr); err != nil {
+			return 0, fmt.Errorf("scanning loan row: %w", err)
+		}
+
+		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
+		if err != nil {
+			return 0, fmt.Errorf("parsing due date: %w", err)
+		}
+
+		totalAmount, _, _ := calculateLoanDetails(amount, dueDate)
+		totalLoan += totalAmount
+	}
+
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return totalLoan, nil
+}
+
+
 
 // Main function to set up server and routes
 func main() {
@@ -556,7 +639,40 @@ func main() {
 	// 	"user_id": 1,
 	// 	"initial_amount": 10000,
 	// 	"due_date_time": "2022-01-01 15:00"
-	// }	
+
+	// HTTP route to get user's total loan amount with pending status
+http.HandleFunc("/getUserTotalLoan", func(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userIDStr := r.URL.Query().Get("userID")
+	if userIDStr == "" {
+		http.Error(w, "UserID is required", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+		return
+	}
+
+	totalLoan, err := database.GetUserTotalLoan(userID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]float64{"total_loan": totalLoan}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+})
+
+
+	http.HandleFunc("/getUserLoans", getUserLoans(database))
+
 
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
