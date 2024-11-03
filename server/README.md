@@ -226,3 +226,26 @@ This API allows users to manage their loan applications, account information, an
             "totalAmount": 4160
         }
         ```
+    ### 13. Make Payment
+
+    - **URL**: `http://localhost:8080/makePayment?loanID=76`
+    - **Method**: `POST`
+    - **Response**:
+        ```json
+        {
+            "message": "Payment processed successfully",
+            "status": "intime"
+        }
+        ```
+
+
+### 14. Get User Credit Level
+
+- **URL**: `http://localhost:8080/getUserCreditLevel?userID=10`
+- **Method**: `GET`
+- **Response**:
+    ```json
+    {
+        "credit_level": "yellow"
+    }
+    ```
