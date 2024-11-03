@@ -336,6 +336,42 @@ func (db *Database) DeleteAccount(accountID int) error {
 
 	return nil
 }
+// GetUserTotalLoan calculates the total loan amount for a user including interest with pending status
+func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
+	query := `SELECT Amount, Duedate FROM loan WHERE UserID = ? AND Status = 'pending'`
+	rows, err := db.Query(query, userID)
+	if err != nil {
+		return 0, fmt.Errorf("querying loans: %w", err)
+	}
+	defer rows.Close()
+
+	var totalLoan float64
+
+	for rows.Next() {
+		var amount float64
+		var dueDateStr string
+
+		if err := rows.Scan(&amount, &dueDateStr); err != nil {
+			return 0, fmt.Errorf("scanning loan row: %w", err)
+		}
+
+		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
+		if err != nil {
+			return 0, fmt.Errorf("parsing due date: %w", err)
+		}
+
+		totalAmount, _, _ := calculateLoanDetails(amount, dueDate)
+		totalLoan += totalAmount
+	}
+
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return totalLoan, nil
+}
+
+
 
 // Main function to set up server and routes
 func main() {
@@ -603,6 +639,36 @@ func main() {
 	// 	"user_id": 1,
 	// 	"initial_amount": 10000,
 	// 	"due_date_time": "2022-01-01 15:00"
+
+	// HTTP route to get user's total loan amount with pending status
+http.HandleFunc("/getUserTotalLoan", func(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userIDStr := r.URL.Query().Get("userID")
+	if userIDStr == "" {
+		http.Error(w, "UserID is required", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+		return
+	}
+
+	totalLoan, err := database.GetUserTotalLoan(userID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]float64{"total_loan": totalLoan}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+})
 
 
 	http.HandleFunc("/getUserLoans", getUserLoans(database))

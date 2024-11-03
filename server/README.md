@@ -149,4 +149,17 @@ This API allows users to manage their loan applications, account information, an
         ...
     ]
     ```
+### 8.Get User Total Loan
 
+- **URL**: `http://localhost:8080/getUserTotalLoan?userID=3`
+- **Method**: `GET`
+- **Query Parameters**:
+    - `userID` (required): User ID to retrieve the total loan amount.
+
+- **Response**:
+    ```json
+    {
+        "total_loan": 303768
+    }
+    ```
+    ```
