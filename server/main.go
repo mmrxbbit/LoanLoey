@@ -111,11 +111,14 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 	doProcess := time.Now().In(loc) // Get current time in Thai timezone
 
 	// Format DOProcess for the database
-	doProcessFormatted := doProcess.Format("2006-01-02 15:04") // Adjusted format
+	doProcessFormatted := doProcess.Format("2006-01-02 15:04:05") // Adjusted format for datetime
+
+	// Format DueDateTime for the database
+	dueDateFormatted := dueDateTime.Format("2006-01-02 15:04:05") // Adjusted format for datetime
 
 	// Insert loan into the database
-	query := `INSERT INTO loan (UserID, Amount, Duration, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
-	_, err = db.Exec(query, request.UserID, totalAmount, durationDays, doProcessFormatted, "pending")
+	query := `INSERT INTO loan (UserID, Amount, Duedate, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
+	_, err = db.Exec(query, request.UserID, request.InitialAmount, dueDateFormatted, doProcessFormatted, "pending")
 	if err != nil {
 		return LoanResponse{}, fmt.Errorf("inserting loan: %w", err)
 	}
@@ -132,8 +135,6 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 
 	return response, nil
 }
-
-
 
 
 
