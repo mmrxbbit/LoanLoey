@@ -6,8 +6,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.0",
     "autoprefixer": "^10.4.20",
-    "bootstrap": "^5.3.3",
     "next": "latest",
     "postcss": "^8.4.47",
     "react": "18.2.0",
