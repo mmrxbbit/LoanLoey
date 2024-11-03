@@ -216,3 +216,13 @@ This API allows users to manage their loan applications, account information, an
             "interest": 160
         }
         ```
+    ### 12. Check Payment Details
+
+    - **URL**: `http://localhost:8080/checkPaymentDetails?loanID=52`
+    - **Method**: `GET`
+    - **Response**:
+        ```json
+        {
+            "totalAmount": 4160
+        }
+        ```

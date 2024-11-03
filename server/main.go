@@ -429,6 +429,76 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 }
 
 
+//PAYMENT
+func checkPaymentDetails(db *Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
+
+		// Check if the request method is GET
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Retrieve LoanID from query parameters
+		loanIDStr := r.URL.Query().Get("loanID")
+		if loanIDStr == "" {
+			http.Error(w, "LoanID is required", http.StatusBadRequest)
+			return
+		}
+
+		// Convert LoanID to integer
+		loanID, err := strconv.Atoi(loanIDStr)
+		if err != nil {
+			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
+			return
+		}
+
+		// Query to retrieve loan details
+		query := `SELECT Amount, Duedate FROM loan WHERE LoanID = ?`
+		var amount float64
+		var dueDateStr string
+		err = db.QueryRow(query, loanID).Scan(&amount, &dueDateStr)
+
+		// Check for errors in the query
+		if err == sql.ErrNoRows {
+			http.Error(w, "Loan not found", http.StatusNotFound)
+			return
+		} else if err != nil {
+			log.Printf("Error querying loan: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		// Parse the due date
+		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Parsing due date: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Calculate total amount using your helper functions
+		totalAmount, _, err := calculateLoanDetails(amount, dueDate)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Calculating loan details: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Prepare the JSON response with only the total amount
+		response := map[string]float64{
+			"totalAmount": totalAmount,
+		}
+
+		// Set response headers and encode the response as JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
+
+
+
+
 // Main function to set up server and routes
 func main() {
 	// Connect to the database
@@ -734,6 +804,12 @@ func main() {
 			json.NewEncoder(w).Encode(response)
 		})
 	
+	
+	
+	//PAYMENT
+	http.HandleFunc("/checkPaymentDetails", checkPaymentDetails(database))
+
+
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
