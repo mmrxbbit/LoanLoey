@@ -4,18 +4,22 @@ import Link from "next/link";
 export default function NavBar() {
     return (
         <>
-            <nav>
-                <div>
-                    <div className="Blue"></div>
-                    <h1>Username</h1>
+            <header className="p-3 text-bg-dark .bg-dark">
+                <div className="container">
+                    <div className="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
+                        <div>
+                            <p>logo</p>
+                            <p>Username</p>
+                        </div>
+                        
+                        <p>Debt Status</p>
+
+                        <div className="text-end">
+                            <p>dropdown</p>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <h1>You have debt!</h1>
-                </div>
-                <div>
-                    <p>dropdown</p>
-                </div>
-            </nav>
+            </header>
         </>
     );
 }
