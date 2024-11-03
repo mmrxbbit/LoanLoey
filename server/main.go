@@ -412,6 +412,7 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 		return LoanResponse{}, fmt.Errorf("loading location: %w", err)
 	}
 	doProcess := time.Now().In(loc)
+	fmt.Println("doProcess: ",doProcess)
 
 	query := `INSERT INTO loan (UserID, Amount, Duedate, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
 	_, err = db.Exec(query, request.UserID, request.InitialAmount, dueDateTime.Format("2006-01-02 15:04:05"), doProcess.Format("2006-01-02 15:04:05"), "pending")
@@ -428,8 +429,7 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 	}, nil
 }
 
-
-//PAYMENT
+// PAYMENT
 func checkPaymentDetails(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
@@ -478,11 +478,7 @@ func checkPaymentDetails(db *Database) http.HandlerFunc {
 		}
 
 		// Calculate total amount using your helper functions
-		totalAmount, _, err := calculateLoanDetails(amount, dueDate)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Calculating loan details: %v", err), http.StatusInternalServerError)
-			return
-		}
+		totalAmount, _, _ := calculateLoanDetails(amount, dueDate)
 
 		// Prepare the JSON response with only the total amount
 		response := map[string]float64{
@@ -495,7 +491,100 @@ func checkPaymentDetails(db *Database) http.HandlerFunc {
 	}
 }
 
+func makePayment(db *Database) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        log.Printf("Received request to make payment for LoanID: %s", r.URL.Query().Get("loanID"))
 
+        // Check if the request method is POST
+        if r.Method != http.MethodPost {
+            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+            return
+        }
+
+        // Retrieve LoanID from query parameters
+        loanIDStr := r.URL.Query().Get("loanID")
+        if loanIDStr == "" {
+            http.Error(w, "LoanID is required", http.StatusBadRequest)
+            return
+        }
+
+        // Convert LoanID to integer
+        loanID, err := strconv.Atoi(loanIDStr)
+        if err != nil {
+            http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
+            return
+        }
+
+        // Get current Thai time
+        tz, err := time.LoadLocation("Asia/Bangkok")
+        if err != nil {
+            http.Error(w, "Error loading timezone", http.StatusInternalServerError)
+            return
+        }
+        dopayment := time.Now().In(tz)
+        fmt.Println("dopayment: ", dopayment)
+
+        // Query to get the due date and loan status
+        var dueDate time.Time
+        var loanStatus string
+        query := `SELECT Duedate, Status FROM loan WHERE LoanID = ?`
+        var dueDateStr string
+
+        db.QueryRow(query, loanID).Scan(&dueDateStr, &loanStatus)
+        dueDate, err = time.Parse("2006-01-02 15:04:05", dueDateStr)
+        fmt.Println("duedate: ", dueDate)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Parsing due date: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // Determine the payment status
+        status := "intime"
+        if dopayment.After(dueDate) {
+            status = "late"
+        }
+        fmt.Println("status", dopayment,dueDate,status)
+
+        // Insert the payment record into the payment table
+        _, err = db.Exec(`INSERT INTO payment (LoanID, DOPayment, Status) VALUES (?, ?, ?)`, loanID, dopayment.Format("2006-01-02 15:04:05"), status)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error inserting payment record: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // Update the loan status to "complete"
+        _, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error updating loan status: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // If the payment is late, increment the user's credit score
+        if status == "late" {
+            var userID int
+            err = db.QueryRow(`SELECT UserID FROM loan WHERE LoanID = ?`, loanID).Scan(&userID)
+            if err != nil {
+                http.Error(w, fmt.Sprintf("Error fetching UserID: %v", err), http.StatusInternalServerError)
+                return
+            }
+
+            _, err = db.Exec(`UPDATE user SET CreditScore = CreditScore + 1 WHERE UserID = ?`, userID)
+            if err != nil {
+                http.Error(w, fmt.Sprintf("Error updating user credit score: %v", err), http.StatusInternalServerError)
+                return
+            }
+        }
+
+        // Prepare a success response
+        response := map[string]string{
+            "message": "Payment processed successfully",
+            "status":  status,
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)
+    }
+}
 
 
 
@@ -603,7 +692,6 @@ func main() {
 		fmt.Fprintln(w, "Welcome to the Home Page!")
 	})
 
-
 	//USER
 
 	// HTTP route to update user information
@@ -641,48 +729,43 @@ func main() {
 		json.NewEncoder(w).Encode(response)
 	})
 
-
-
 	// HTTP route to get user information
 	http.HandleFunc("/getUserInfo", func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodGet {
-				http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-				return
-			}
-	
-			userIDStr := r.URL.Query().Get("userID")
-			log.Printf("Received UserID: %s", userIDStr)
-	
-			if userIDStr == "" {
-				http.Error(w, "UserID is required", http.StatusBadRequest)
-				return
-			}
-	
-			userID, err := strconv.Atoi(userIDStr)
-			if err != nil {
-				log.Printf("Error converting UserID: %v", err)
-				http.Error(w, "Invalid UserID format", http.StatusBadRequest)
-				return
-			}
-	
-			userAccount, err := database.GetUserInfo(userID)
-			if err != nil {
-				log.Printf("Failed to get user info: %v", err)
-				http.Error(w, "User not found", http.StatusNotFound)
-				return
-			}
-	
-			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(userAccount); err != nil {
-				log.Printf("Error encoding user info to JSON: %v", err)
-				http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-				return
-			}
-		})
-	
-	
-	
-	
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userIDStr := r.URL.Query().Get("userID")
+		log.Printf("Received UserID: %s", userIDStr)
+
+		if userIDStr == "" {
+			http.Error(w, "UserID is required", http.StatusBadRequest)
+			return
+		}
+
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil {
+			log.Printf("Error converting UserID: %v", err)
+			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+			return
+		}
+
+		userAccount, err := database.GetUserInfo(userID)
+		if err != nil {
+			log.Printf("Failed to get user info: %v", err)
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(userAccount); err != nil {
+			log.Printf("Error encoding user info to JSON: %v", err)
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
+	})
+
 	//ADMIN
 	// HTTP route for admin creation
 	http.HandleFunc("/createAdmin", func(w http.ResponseWriter, r *http.Request) {
@@ -707,56 +790,54 @@ func main() {
 		json.NewEncoder(w).Encode(response)
 	})
 
-
-
 	//LOAN
 	// HTTP route to get total loan amount with pending status
 	http.HandleFunc("/getTotalLoan", func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodGet {
-				http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-				return
-			}
-	
-			totalLoan, err := database.GetTotalLoan()
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
-				return
-			}
-	
-			response := map[string]float64{"total_loan": totalLoan}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
-		})
-	
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		totalLoan, err := database.GetTotalLoan()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]float64{"total_loan": totalLoan}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
+
 	http.HandleFunc("/getUserTotalLoan", func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodGet {
-				http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-				return
-			}
-	
-			userIDStr := r.URL.Query().Get("userID")
-			if userIDStr == "" {
-				http.Error(w, "UserID is required", http.StatusBadRequest)
-				return
-			}
-	
-			userID, err := strconv.Atoi(userIDStr)
-			if err != nil {
-				http.Error(w, "Invalid UserID format", http.StatusBadRequest)
-				return
-			}
-	
-			totalLoan, err := database.GetUserTotalLoan(userID)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
-				return
-			}
-	
-			response := map[string]float64{"total_loan": totalLoan}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
-		})
-	
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userIDStr := r.URL.Query().Get("userID")
+		if userIDStr == "" {
+			http.Error(w, "UserID is required", http.StatusBadRequest)
+			return
+		}
+
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil {
+			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+			return
+		}
+
+		totalLoan, err := database.GetUserTotalLoan(userID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]float64{"total_loan": totalLoan}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
+
 	http.HandleFunc("/getUserLoans", getUserLoans(database))
 
 	http.HandleFunc("/checkLoanDetails", func(w http.ResponseWriter, r *http.Request) {
@@ -783,32 +864,32 @@ func main() {
 
 	// / HTTP route for applying for a loan
 	http.HandleFunc("/applyForLoan", func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodPost {
-				http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-				return
-			}
-	
-			var loanRequest LoanRequest
-			if err := json.NewDecoder(r.Body).Decode(&loanRequest); err != nil {
-				http.Error(w, "Invalid request body", http.StatusBadRequest)
-				return
-			}
-	
-			response, err := database.applyForLoan(loanRequest)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Loan application failed: %v", err), http.StatusInternalServerError)
-				return
-			}
-	
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
-		})
-	
-	
-	
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var loanRequest LoanRequest
+		if err := json.NewDecoder(r.Body).Decode(&loanRequest); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		response, err := database.applyForLoan(loanRequest)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Loan application failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
+
 	//PAYMENT
 	http.HandleFunc("/checkPaymentDetails", checkPaymentDetails(database))
 
+	// Register your handlers
+	http.HandleFunc("/makePayment", makePayment(database))
 
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
