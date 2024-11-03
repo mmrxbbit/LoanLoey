@@ -163,3 +163,56 @@ This API allows users to manage their loan applications, account information, an
     }
     ```
     ```
+### 9. Get Total Loan
+
+- **URL**: `http://localhost:8080/getTotalLoan`
+- **Method**: `GET`
+- **Response**:
+    ```json
+    {
+       "total_loan": 500000
+    }
+    ```
+
+
+    ### 10. Create Admin
+    - **URL**: `http://localhost:8080/createAdmin`
+    - **Method**: `POST`
+    - **Request Body**:
+        ```json
+        {
+            "username": "admin_user",
+            "password": "adminpassword",
+            "first_name": "Admin",
+            "last_name": "User"
+        }
+        ```
+    - **Response**:
+        ```json
+        {
+            "message": "Admin created successfully!"
+        }
+        ```
+
+    ### 11. Check Loan Details
+   
+    - **URL**: `http://localhost:8080/checkLoanDetails`
+    - **Method**: `GET`
+    - **Request Body**:
+        ```json
+        {
+            "user_id": 10,
+            "initial_amount": 4000,
+            "due_date_time": "2030-11-18 12:30"
+        }
+        ```
+    - **Response**:
+        ```json
+        {
+            "total": 4160,
+            "due_date_time": "2030-11-18 12:30",
+            "initial_amount": 4000,
+            "interest_rate": 0.04,
+            "interest": 160
+        }
+        ```
