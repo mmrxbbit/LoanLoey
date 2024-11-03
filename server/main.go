@@ -271,31 +271,47 @@ func main() {
 
 	// HTTP route for user login
 	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-			return
-		}
+        if r.Method != http.MethodPost {
+            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+            return
+        }
 
-		var credentials struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
-		}
+        var credentials struct {
+            Username string `json:"username"`
+            Password string `json:"password"`
+        }
 
-		if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
+        if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
+            http.Error(w, "Invalid request body", http.StatusBadRequest)
+            return
+        }
 
-		role, err := database.Login(credentials.Username, credentials.Password)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Login failed: %v", err), http.StatusUnauthorized)
-			return
-		}
+        role, err := database.Login(credentials.Username, credentials.Password)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Login failed: %v", err), http.StatusUnauthorized)
+            return
+        }
 
-		response := map[string]string{"role": role}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-	})
+        // Redirect based on the role
+        redirectPath := "/homepage"
+        if role == "admin" {
+            redirectPath = "/adminpage"
+        }
+        http.Redirect(w, r, redirectPath, http.StatusFound)
+    })
+    
+
+   
+ 
+
+    http.HandleFunc("/adminpage", func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintln(w, "Welcome to the Admin Page!")
+    })
+
+    http.HandleFunc("/homepage", func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintln(w, "Welcome to the Home Page!")
+    })
+
 
 	// Test JSON body for /login
 	// {
