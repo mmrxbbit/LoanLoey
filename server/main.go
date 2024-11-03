@@ -166,6 +166,7 @@ func (db *Database) UpdateUserInfo(userID int, userAccount UserAccount) error {
 	}
 	return nil
 }
+
 // DeleteAccount function to delete an account based on account ID
 func (db *Database) DeleteAccount(accountID int) error {
 	// Delete from user table if exists
@@ -191,7 +192,6 @@ func (db *Database) DeleteAccount(accountID int) error {
 
 	return nil
 }
-
 
 // Main function to set up server and routes
 func main() {
@@ -225,109 +225,84 @@ func main() {
 		response := map[string]string{"message": "Account and User created successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
+		// Sample input for /signup
+		// POST /signup
+		// {
+		//   "username": "newuser",
+		//   "password": "securepassword",
+		//   "first_name": "John",
+		//   "last_name": "Doe",
+		//   "id_card": "123456789",
+		//   "dob": "1990-01-01",
+		//   "phone_no": "1234567890",
+		//   "address": "123 Main St",
+		//   "bank_name": "Bank Name",
+		//   "bank_acc_no": "987654321"
+		// }
 	})
 
-	// HTTP route for admin creation
-	http.HandleFunc("/createAdmin", func(w http.ResponseWriter, r *http.Request) {
+	// HTTP route for user login
+	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
-		var admin Admin
-		if err := json.NewDecoder(r.Body).Decode(&admin); err != nil {
+		var credentials struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		if err := database.CreateAdmin(admin); err != nil {
-			http.Error(w, fmt.Sprintf("CreateAdmin failed: %v", err), http.StatusInternalServerError)
+		role, err := database.Login(credentials.Username, credentials.Password)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Login failed: %v", err), http.StatusUnauthorized)
 			return
 		}
 
-		response := map[string]string{"message": "Admin created successfully!"}
+		response := map[string]string{"role": role}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
+		// Sample input for /login
+		// POST /login
+		// {
+		//   "username": "existinguser",
+		//   "password": "userpassword"
+		// }
 	})
 
-	// HTTP route to get user information
-	http.HandleFunc("/getUserInfo", func(w http.ResponseWriter, r *http.Request) {
+	// HTTP route for retrieving user info
+	http.HandleFunc("/user/info", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
-		userIDStr := r.URL.Query().Get("userID")
-		log.Printf("Received UserID: %s", userIDStr)
-
-		if userIDStr == "" {
-			http.Error(w, "UserID is required", http.StatusBadRequest)
-			return
-		}
-
-		userID, err := strconv.Atoi(userIDStr)
+		// Assuming user ID is passed as a query parameter
+		userIDParam := r.URL.Query().Get("user_id")
+		userID, err := strconv.Atoi(userIDParam)
 		if err != nil {
-			log.Printf("Error converting UserID: %v", err)
-			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+			http.Error(w, "Invalid user ID", http.StatusBadRequest)
 			return
 		}
 
 		userAccount, err := database.GetUserInfoByID(userID)
 		if err != nil {
-			log.Printf("Failed to get user info: %v", err)
-			http.Error(w, "User not found", http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("Could not retrieve user info: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(userAccount); err != nil {
-			log.Printf("Error encoding user info to JSON: %v", err)
-			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-			return
-		}
+		json.NewEncoder(w).Encode(userAccount)
+		// Sample input for /user/info
+		// GET /user/info?user_id=1
 	})
 
-// HTTP route for user login
-http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var credentials struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	role, err := database.Login(credentials.Username, credentials.Password)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Login failed: %v", err), http.StatusUnauthorized)
-		return
-	}
-
-	// Redirect based on the role
-	redirectPath := "/homepage"
-	if role == "admin" {
-		redirectPath = "/adminpage"
-	}
-	http.Redirect(w, r, redirectPath, http.StatusFound)
-})
-
-	http.HandleFunc("/adminpage", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Welcome to the Admin Page!")
-	})
-
-	http.HandleFunc("/homepage", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Welcome to the Home Page!")
-	})
-
-		// HTTP route to update user information
-http.HandleFunc("/updateUserInfo", func(w http.ResponseWriter, r *http.Request) {
+	// HTTP route for updating user info
+	http.HandleFunc("/user/update", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -339,60 +314,66 @@ http.HandleFunc("/updateUserInfo", func(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		userIDStr := r.URL.Query().Get("userID")
-		if userIDStr == "" {
-			http.Error(w, "UserID is required", http.StatusBadRequest)
-			return
-		}
-
-		userID, err := strconv.Atoi(userIDStr)
+		// Assuming user ID is passed as a query parameter
+		userIDParam := r.URL.Query().Get("user_id")
+		userID, err := strconv.Atoi(userIDParam)
 		if err != nil {
-			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+			http.Error(w, "Invalid user ID", http.StatusBadRequest)
 			return
 		}
 
 		if err := database.UpdateUserInfo(userID, userAccount); err != nil {
-			http.Error(w, fmt.Sprintf("UpdateUserInfo failed: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		response := map[string]string{"message": "User information updated successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
+		// Sample input for /user/update
+		// PUT /user/update?user_id=1
+		// {
+		//   "first_name": "John",
+		//   "last_name": "Doe",
+		//   "id_card": "987654321",
+		//   "dob": "1990-01-01",
+		//   "phone_no": "0987654321",
+		//   "address": "456 Elm St",
+		//   "bank_name": "New Bank Name",
+		//   "bank_acc_no": "123456789"
+		// }
 	})
 
-	// HTTP route to delete an account
-http.HandleFunc("/deleteAccount", func(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
+	// HTTP route for deleting an account
+	http.HandleFunc("/account/delete", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
 
-	accountIDStr := r.URL.Query().Get("accountID")
-	if accountIDStr == "" {
-		http.Error(w, "AccountID is required", http.StatusBadRequest)
-		return
-	}
+		// Assuming account ID is passed as a query parameter
+		accountIDParam := r.URL.Query().Get("account_id")
+		accountID, err := strconv.Atoi(accountIDParam)
+		if err != nil {
+			http.Error(w, "Invalid account ID", http.StatusBadRequest)
+			return
+		}
 
-	accountID, err := strconv.Atoi(accountIDStr)
-	if err != nil {
-		http.Error(w, "Invalid AccountID format", http.StatusBadRequest)
-		return
-	}
+		if err := database.DeleteAccount(accountID); err != nil {
+			http.Error(w, fmt.Sprintf("Delete failed: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-	if err := database.DeleteAccount(accountID); err != nil {
-		http.Error(w, fmt.Sprintf("DeleteAccount failed: %v", err), http.StatusInternalServerError)
-		return
-	}
+		response := map[string]string{"message": "Account deleted successfully!"}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		// Sample input for /account/delete
+		// DELETE /account/delete?account_id=1
+	})
 
-	response := map[string]string{"message": "Account deleted successfully!"}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-})
-
-
-	log.Println("Server starting on :8080")
+	// Start the HTTP server
+	log.Println("Starting server on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		log.Fatalf("Server failed: %v", err)
 	}
 }
