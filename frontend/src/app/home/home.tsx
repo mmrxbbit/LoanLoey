@@ -1,11 +1,11 @@
 "use client";
-import NavBar from "../components/NavBar";
+import NavBar from "../../components/NavBar";
 
 export default function Home() {
   return (
     <>
       <NavBar></NavBar>
-      <div className="bg-black w-screen h-screen">
+      <div className="bg-black w-svh h-dvh">
         <div className="text-white flex flex-col items-center w-full h-full">
           <div className="flex flex-row justify-center items-center gap-x-4 h-1/6">
             <h1>pic</h1>

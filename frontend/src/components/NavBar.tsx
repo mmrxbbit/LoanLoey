@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function NavBar() {
   const PageName = [
-    { name: "Home", path: "/" },
+    { name: "Home", path: "/home" },
     { name: "User Information", path: "/userinfo" },
     { name: "Borrow Money", path: "/borrow" },
     { name: "User Debt", path: "/userdebt" },
