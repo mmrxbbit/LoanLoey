@@ -539,11 +539,16 @@ func makePayment(db *Database) http.HandlerFunc {
         }
 
         // Determine the payment status
-        status := "intime"
-        if dopayment.After(dueDate) {
-            status = "late"
-        }
-        fmt.Println("status", dopayment,dueDate,status)
+		status := "intime"
+		if dopayment.Year() > dueDate.Year() ||
+			(dopayment.Year() == dueDate.Year() && dopayment.Month() > dueDate.Month()) ||
+			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() > dueDate.Day()) ||
+			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() == dueDate.Day() && dopayment.Hour() > dueDate.Hour()) ||
+			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() == dueDate.Day() && dopayment.Hour() == dueDate.Hour() && dopayment.Minute() > dueDate.Minute()) ||
+			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() == dueDate.Day() && dopayment.Hour() == dueDate.Hour() && dopayment.Minute() == dueDate.Minute() && dopayment.Second() > dueDate.Second()) {
+			status = "late"
+		}
+        //fmt.Println("status", dopayment,dueDate,status)
 
         // Insert the payment record into the payment table
         _, err = db.Exec(`INSERT INTO payment (LoanID, DOPayment, Status) VALUES (?, ?, ?)`, loanID, dopayment.Format("2006-01-02 15:04:05"), status)
