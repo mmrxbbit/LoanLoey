@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
@@ -35,10 +37,105 @@ type Admin struct {
 	LastName  string `json:"last_name"`
 }
 
+// LoanRequest struct represents the data needed to apply for a loan
+type LoanRequest struct {
+	UserID        int     `json:"user_id"`
+	InitialAmount float64 `json:"initial_amount"`
+	DueDateTime   string  `json:"due_date_time"` // expected format: "2006-01-02 15:04"
+}
+
+// LoanResponse struct represents the response after applying for a loan
+type LoanResponse struct {
+	TotalAmount    float64 `json:"total"`
+	DueDateTime    string  `json:"due_date_time"`
+	InitialAmount  float64 `json:"initial_amount"`
+	InterestRate   float64 `json:"interest_rate"`
+	InterestAmount float64 `json:"interest"`
+	UserID         int     `json:"user_id"`
+}
+
 // Database struct wraps the SQL database connection
 type Database struct {
 	*sql.DB
 }
+func roundToTwoDecimalPlaces(value float64) float64 {
+	return math.Round(value*100) / 100
+}
+
+func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
+	const (
+		lowInterestRate      = 0.03 // 3%
+		midInterestRate      = 0.04 // 4%
+		highInterestRate     = 0.05 // 5%
+		longTermLoanPenalty  = 0.01 // 1% penalty for loans longer than a year
+	)
+
+	// Calculate the interest rate based on the initial amount
+	var interestRate float64
+	switch {
+	case request.InitialAmount > 20000:
+		interestRate = highInterestRate
+	case request.InitialAmount > 10000:
+		interestRate = midInterestRate
+	default:
+		interestRate = lowInterestRate
+	}
+
+	// Parse DueDateTime from request
+	dueDateTime, err := time.Parse("2006-01-02 15:04", request.DueDateTime)
+	if err != nil {
+		return LoanResponse{}, fmt.Errorf("parsing DueDateTime: %w", err)
+	}
+
+	// Calculate duration in days
+	durationDays := int(time.Until(dueDateTime).Hours() / 24)
+	if durationDays < 0 {
+		return LoanResponse{}, fmt.Errorf("DueDateTime must be in the future")
+	}
+
+	// Adjust interest rate for long-term loans
+	if durationDays > 365 {
+		interestRate += longTermLoanPenalty
+		interestRate = roundToTwoDecimalPlaces(interestRate)
+	}
+
+	// Calculate interest and total amount
+	interestAmount := request.InitialAmount * interestRate
+	totalAmount := request.InitialAmount + interestAmount
+
+	// Set DOProcess to the current time in Thai timezone
+	loc, err := time.LoadLocation("Asia/Bangkok") // Load Thai timezone
+	if err != nil {
+		return LoanResponse{}, fmt.Errorf("loading location: %w", err)
+	}
+	doProcess := time.Now().In(loc) // Get current time in Thai timezone
+
+	// Format DOProcess for the database
+	doProcessFormatted := doProcess.Format("2006-01-02 15:04") // Adjusted format
+
+	// Insert loan into the database
+	query := `INSERT INTO loan (UserID, Amount, Duration, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
+	_, err = db.Exec(query, request.UserID, totalAmount, durationDays, doProcessFormatted, "pending")
+	if err != nil {
+		return LoanResponse{}, fmt.Errorf("inserting loan: %w", err)
+	}
+
+	// Prepare the response
+	response := LoanResponse{
+		TotalAmount:    totalAmount,
+		DueDateTime:    request.DueDateTime,
+		InitialAmount:  request.InitialAmount,
+		InterestRate:   interestRate,
+		InterestAmount: interestAmount,
+		UserID:         request.UserID,
+	}
+
+	return response, nil
+}
+
+
+
+
 
 // Signup function to create a new account
 func (db *Database) Signup(userAccount UserAccount) error {
@@ -84,7 +181,7 @@ func (db *Database) GetUserInfoByID(userID int) (*UserAccount, error) {
 	query := `SELECT u.FirstName, u.LastName, u.IDCard, u.DOB, u.PhoneNo, u.Address, u.CreditScore, 
                       u.BankName, u.BankAccNo 
               FROM user u WHERE u.UserID = ?`
-	err := db.QueryRow(query, userID).Scan(&userAccount.FirstName, &userAccount.LastName, &userAccount.IDCard, &userAccount.DOB, 
+	err := db.QueryRow(query, userID).Scan(&userAccount.FirstName, &userAccount.LastName, &userAccount.IDCard, &userAccount.DOB,
 		&userAccount.PhoneNo, &userAccount.Address, &userAccount.CreditScore, &userAccount.BankName, &userAccount.BankAccNo)
 	if err != nil {
 		return nil, fmt.Errorf("querying user info: %w", err)
@@ -159,7 +256,7 @@ func (db *Database) Login(username, password string) (string, error) {
 func (db *Database) UpdateUserInfo(userID int, userAccount UserAccount) error {
 	query := `UPDATE user SET FirstName = ?, LastName = ?, IDCard = ?, DOB = ?, PhoneNo = ?, Address = ?, BankName = ?, BankAccNo = ? 
 			  WHERE UserID = ?`
-	_, err := db.Exec(query, userAccount.FirstName, userAccount.LastName, userAccount.IDCard, userAccount.DOB, userAccount.PhoneNo, 
+	_, err := db.Exec(query, userAccount.FirstName, userAccount.LastName, userAccount.IDCard, userAccount.DOB, userAccount.PhoneNo,
 		userAccount.Address, userAccount.BankName, userAccount.BankAccNo, userID)
 	if err != nil {
 		return fmt.Errorf("updating user info: %w", err)
@@ -225,21 +322,89 @@ func main() {
 		response := map[string]string{"message": "Account and User created successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-		// Sample input for /signup
-		// POST /signup
-		// {
-		//   "username": "newuser",
-		//   "password": "securepassword",
-		//   "first_name": "John",
-		//   "last_name": "Doe",
-		//   "id_card": "123456789",
-		//   "dob": "1990-01-01",
-		//   "phone_no": "1234567890",
-		//   "address": "123 Main St",
-		//   "bank_name": "Bank Name",
-		//   "bank_acc_no": "987654321"
-		// }
 	})
+	// {
+	// 	"username": "john_doe",
+	// 	"password": "securepassword",
+	// 	"first_name": "John",
+	// 	"last_name": "Doe",
+	// 	"id_card": "1234567890123",
+	// 	"dob": "1990-01-01",
+	// 	"phone_no": "0123456789",
+	// 	"address": "123 Main St, Anytown, USA",
+	// 	"bank_name": "Bank of Example",
+	// 	"bank_acc_no": "9876543210"
+	// }
+	
+
+	// HTTP route for admin creation
+	http.HandleFunc("/createAdmin", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var admin Admin
+		if err := json.NewDecoder(r.Body).Decode(&admin); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if err := database.CreateAdmin(admin); err != nil {
+			http.Error(w, fmt.Sprintf("CreateAdmin failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]string{"message": "Admin created successfully!"}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
+	// {
+	// 	"username": "admin_user",
+	// 	"password": "adminpassword",
+	// 	"first_name": "Admin",
+	// 	"last_name": "User"
+	// }
+	
+
+	// HTTP route to get user information
+	http.HandleFunc("/getUserInfo", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		userIDStr := r.URL.Query().Get("userID")
+		log.Printf("Received UserID: %s", userIDStr)
+
+		if userIDStr == "" {
+			http.Error(w, "UserID is required", http.StatusBadRequest)
+			return
+		}
+
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil {
+			log.Printf("Error converting UserID: %v", err)
+			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+			return
+		}
+
+		userAccount, err := database.GetUserInfoByID(userID)
+		if err != nil {
+			log.Printf("Failed to get user info: %v", err)
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(userAccount); err != nil {
+			log.Printf("Error encoding user info to JSON: %v", err)
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
+	})
+	//URL: http://localhost:8080/getUserInfo?userID=1      
+	//Method: GET
 
 	// HTTP route for user login
 	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
@@ -252,6 +417,7 @@ func main() {
 			Username string `json:"username"`
 			Password string `json:"password"`
 		}
+
 		if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
@@ -263,46 +429,30 @@ func main() {
 			return
 		}
 
-		response := map[string]string{"role": role}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-		// Sample input for /login
-		// POST /login
-		// {
-		//   "username": "existinguser",
-		//   "password": "userpassword"
-		// }
+		// Redirect based on the role
+		redirectPath := "/homepage"
+		if role == "admin" {
+			redirectPath = "/adminpage"
+		}
+		http.Redirect(w, r, redirectPath, http.StatusFound)
 	})
 
-	// HTTP route for retrieving user info
-	http.HandleFunc("/user/info", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Assuming user ID is passed as a query parameter
-		userIDParam := r.URL.Query().Get("user_id")
-		userID, err := strconv.Atoi(userIDParam)
-		if err != nil {
-			http.Error(w, "Invalid user ID", http.StatusBadRequest)
-			return
-		}
-
-		userAccount, err := database.GetUserInfoByID(userID)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Could not retrieve user info: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(userAccount)
-		// Sample input for /user/info
-		// GET /user/info?user_id=1
+	http.HandleFunc("/adminpage", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Welcome to the Admin Page!")
 	})
 
-	// HTTP route for updating user info
-	http.HandleFunc("/user/update", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/homepage", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Welcome to the Home Page!")
+	})
+
+	//{
+	// 	"username": "john_doe",
+	// 	"password": "securepassword"
+	// }
+	
+
+	// HTTP route to update user information
+	http.HandleFunc("/updateUserInfo", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -314,66 +464,102 @@ func main() {
 			return
 		}
 
-		// Assuming user ID is passed as a query parameter
-		userIDParam := r.URL.Query().Get("user_id")
-		userID, err := strconv.Atoi(userIDParam)
+		userIDStr := r.URL.Query().Get("userID")
+		if userIDStr == "" {
+			http.Error(w, "UserID is required", http.StatusBadRequest)
+			return
+		}
+
+		userID, err := strconv.Atoi(userIDStr)
 		if err != nil {
-			http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
 			return
 		}
 
 		if err := database.UpdateUserInfo(userID, userAccount); err != nil {
-			http.Error(w, fmt.Sprintf("Update failed: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("UpdateUserInfo failed: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		response := map[string]string{"message": "User information updated successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-		// Sample input for /user/update
-		// PUT /user/update?user_id=1
-		// {
-		//   "first_name": "John",
-		//   "last_name": "Doe",
-		//   "id_card": "987654321",
-		//   "dob": "1990-01-01",
-		//   "phone_no": "0987654321",
-		//   "address": "456 Elm St",
-		//   "bank_name": "New Bank Name",
-		//   "bank_acc_no": "123456789"
-		// }
 	})
 
-	// HTTP route for deleting an account
-	http.HandleFunc("/account/delete", func(w http.ResponseWriter, r *http.Request) {
+	// {
+	// 	"first_name": "Johnathan",
+	// 	"last_name": "Doe",
+	// 	"id_card": "1234567890123",
+	// 	"dob": "1990-01-01",
+	// 	"phone_no": "0987654321",
+	// 	"address": "456 Elm St, Othertown, USA",
+	// 	"bank_name": "New Bank",
+	// 	"bank_acc_no": "0123456789"
+	// }
+	
+
+	// HTTP route to delete an account
+	http.HandleFunc("/deleteAccount", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
-		// Assuming account ID is passed as a query parameter
-		accountIDParam := r.URL.Query().Get("account_id")
-		accountID, err := strconv.Atoi(accountIDParam)
+		accountIDStr := r.URL.Query().Get("accountID")
+		if accountIDStr == "" {
+			http.Error(w, "AccountID is required", http.StatusBadRequest)
+			return
+		}
+
+		accountID, err := strconv.Atoi(accountIDStr)
 		if err != nil {
-			http.Error(w, "Invalid account ID", http.StatusBadRequest)
+			http.Error(w, "Invalid AccountID format", http.StatusBadRequest)
 			return
 		}
 
 		if err := database.DeleteAccount(accountID); err != nil {
-			http.Error(w, fmt.Sprintf("Delete failed: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("DeleteAccount failed: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		response := map[string]string{"message": "Account deleted successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-		// Sample input for /account/delete
-		// DELETE /account/delete?account_id=1
+	})
+	//URL: http://localhost:8080/deleteAccount?accountID=1
+	//Method: DELETE
+	
+	// / HTTP route for applying for a loan
+	http.HandleFunc("/applyForLoan", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var loanRequest LoanRequest
+		if err := json.NewDecoder(r.Body).Decode(&loanRequest); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		response, err := database.applyForLoan(loanRequest)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Loan application failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 	})
 
-	// Start the HTTP server
-	log.Println("Starting server on :8080")
+	// {
+	// 	"user_id": 1,
+	// 	"initial_amount": 10000,
+	// 	"due_date_time": "2022-01-01 15:00"
+	// }	
+
+	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		log.Fatalf("Failed to start server: %v", err)
 	}
 }
