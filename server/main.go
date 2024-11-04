@@ -417,7 +417,7 @@ func (db *Database) GetTotalLoan() (float64, error) {
 
 // GetUserTotalLoan calculates the total loan amount for a user including interest with pending status
 func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
-	query := `SELECT Amount, Duedate FROM loan WHERE UserID = ? AND Status = 'pending'`
+	query := "SELECT Amount, Duedate FROM loan WHERE UserID = ? AND Status = 'pending'"
 	rows, err := db.Query(query, userID)
 	if err != nil {
 		return 0, fmt.Errorf("querying loans: %w", err)
@@ -425,8 +425,10 @@ func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 	defer rows.Close()
 
 	var totalLoan float64
+	var found bool // Track if any loan rows were found
 
 	for rows.Next() {
+		found = true // Set found to true if a row is processed
 		var amount float64
 		var dueDateStr string
 
@@ -447,10 +449,15 @@ func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 		return 0, fmt.Errorf("error iterating rows: %w", err)
 	}
 
+	if !found {
+		return 0, fmt.Errorf("no pending loans found for user with ID %d", userID)
+	}
+
 	return totalLoan, nil
 }
 
-// GetUserTotalLoan calculates the total loan amount for a user including interest with pending status
+
+// GetUserTotalLoanHistory calculates the total loan amount for a user, including interest, across all loan statuses.
 func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 	query := `SELECT Amount, Duedate FROM loan WHERE UserID = ?`
 	rows, err := db.Query(query, userID)
@@ -460,8 +467,10 @@ func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 	defer rows.Close()
 
 	var totalLoan float64
+	var found bool // Track if any loan rows were found
 
 	for rows.Next() {
+		found = true // Set found to true if a row is processed
 		var amount float64
 		var dueDateStr string
 
@@ -482,8 +491,13 @@ func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 		return 0, fmt.Errorf("error iterating rows: %w", err)
 	}
 
+	if !found {
+		return 0, fmt.Errorf("no loans found for user with ID %d", userID)
+	}
+
 	return totalLoan, nil
 }
+
 
 
 func getUserLoans(db *Database) http.HandlerFunc {
