@@ -249,3 +249,14 @@ This API allows users to manage their loan applications, account information, an
         "credit_level": "yellow"
     }
     ```
+
+    ### 15. Get User Loan History
+
+    - **URL**: `http://localhost:8080/getUserTotalLoanHistory?userID=10`
+    - **Method**: `GET`
+    - **Response**:
+        ```json
+        {
+            "total_loan": 1229760
+        }
+        ```
