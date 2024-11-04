@@ -12,6 +12,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
+import DateTimePicker from "../../components/DateTimePicker";
 
 export default function Borrow() {
   const [showOverlay1, setShowOverlay1] = useState(false);
@@ -57,7 +58,7 @@ export default function Borrow() {
           </h1>
           <form className="space-y-4">
             <div className="flex flex-row items-center gap-x-4">
-              <label className="font-semibold text-xl whitespace-nowrap w-1/4">
+              <label className="w-1/4 font-semibold text-xl whitespace-nowrap">
                 Amount
               </label>
               <input
@@ -70,16 +71,10 @@ export default function Borrow() {
               />
             </div>
             <div className="flex flex-row items-center gap-x-4">
-              <label className="font-semibold text-xl whitespace-nowrap w-1/4">
+              <label className="w-1/4 font-semibold text-xl whitespace-nowrap">
                 Due Date
               </label>
-              <input
-                type="date"
-                name="duedate"
-                value={duedate}
-                onChange={handleDuedateChange}
-                className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-              />
+              <DateTimePicker />
             </div>
             <div className="flex justify-center">
               <button
@@ -98,24 +93,24 @@ export default function Borrow() {
       <Dialog open={showOverlay1} onClose={() => setShowOverlay1(false)}>
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-gray-100 bg-opacity-75 transition-opacity data-[closed]:opacity-0 data-[enter]:ease-out data-[leave]:ease-in"
+          className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[enter]:ease-out data-[leave]:ease-in"
         />
 
-        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center sm:items-center sm:p-0">
+        <div className="z-10 fixed inset-0 w-screen overflow-y-auto">
+          <div className="flex justify-center items-center sm:items-center p-4 sm:p-0 min-h-full text-center">
             <DialogPanel
               transition
-              className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all data-[closed]:translate-y-4 data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-200 data-[enter]:ease-out data-[leave]:ease-in sm:my-8 sm:w-full sm:max-w-lg data-[closed]:sm:translate-y-0 data-[closed]:sm:scale-95"
+              className="relative bg-white data-[closed]:opacity-0 shadow-xl sm:my-8 rounded-lg sm:w-full sm:max-w-lg text-left transform transition-all data-[closed]:sm:translate-y-0 data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
             >
-              <div className="bg-white px-6 pt-5 pb-3 sm:p-6 sm:pb-4">
-                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+              <div className="bg-white px-6 sm:p-6 pt-5 pb-3 sm:pb-4">
+                <div className="mt-3 sm:mt-0 sm:ml-4 text-center sm:text-left">
                   <DialogTitle
                     as="h3"
-                    className="text-base font-semibold text-gray-900"
+                    className="font-semibold text-base text-gray-900"
                   >
                     Summary
                   </DialogTitle>
-                  <div className="mt-2 grid grid-cols-2">
+                  <div className="grid grid-cols-2 mt-2">
                     <div className="flex flex-col gap-x-1">
                       <p className="text-sm">Total</p>
                       <p className="text-sm">Due Date</p>
@@ -134,18 +129,18 @@ export default function Borrow() {
                 </div>
               </div>
               <hr></hr>
-              <div className="bg-white px-4 py-3 flex flex-row gap-x-4">
+              <div className="flex flex-row gap-x-4 bg-white px-4 py-3">
                 <button
                   type="button"
                   onClick={() => setShowOverlay1(false)}
-                  className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto"
+                  className="inline-flex justify-center bg-red-600 hover:bg-red-500 shadow-sm sm:ml-3 px-3 py-2 rounded-md w-full sm:w-auto font-semibold text-sm text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={(event) => confirmOverlay1(event)}
-                  className="mt-3 inline-flex w-full justify-center rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                  className="inline-flex justify-center bg-emerald-700 hover:bg-gray-50 shadow-sm mt-3 sm:mt-0 px-3 py-2 rounded-md ring-1 ring-gray-300 ring-inset w-full sm:w-auto font-semibold text-sm text-white"
                 >
                   Confirm
                 </button>
@@ -158,14 +153,14 @@ export default function Borrow() {
       <Dialog open={showOverlay2} onClose={closeOverlay2}>
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-gray-100 bg-opacity-75 transition-opacity data-[closed]:opacity-0 data-[enter]:ease-out data-[leave]:ease-in"
+          className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[enter]:ease-out data-[leave]:ease-in"
         />
 
-        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center sm:items-center sm:p-0">
+        <div className="z-10 fixed inset-0 w-screen overflow-y-auto">
+          <div className="flex justify-center items-center sm:items-center p-4 sm:p-0 min-h-full text-center">
             <DialogPanel
               transition
-              className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all data-[closed]:translate-y-4 data-[closed]:opacity-0 data-[enter]:duration-300 data-[leave]:duration-200 data-[enter]:ease-out data-[leave]:ease-in sm:my-8 sm:w-full sm:max-w-lg data-[closed]:sm:translate-y-0 data-[closed]:sm:scale-95"
+              className="relative bg-white data-[closed]:opacity-0 shadow-xl sm:my-8 rounded-lg sm:w-full sm:max-w-lg text-left transform transition-all data-[closed]:sm:translate-y-0 data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
             >
               <div className="flex flex-col justify-center">
                 <Image
@@ -175,7 +170,7 @@ export default function Borrow() {
                   height={150}
                   className="w-full h-full"
                 />
-                <div className="w-full flex justify-center">
+                <div className="flex justify-center w-full">
                   <Image
                     src={complete}
                     alt="complete"

@@ -27,7 +27,10 @@ export default function UserInfo() {
 
   return (
     <div className="bg-gray-100 min-h-screen text-gray-800">
-      <NavBar />
+      {/* Position NavBar at the top with a high z-index */}
+      <div className="relative z-10">
+        <NavBar />
+      </div>
 
       {/* Image and Title */}
       <div
