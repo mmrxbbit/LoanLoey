@@ -52,6 +52,7 @@ type LoanResponse struct {
 	InitialAmount  float64 `json:"initial_amount"`
 	InterestRate   float64 `json:"interest_rate"`
 	InterestAmount float64 `json:"interest"`
+	Status         string  `json:"status"`
 }
 
 type UserInfoForAdmin struct {
@@ -452,68 +453,62 @@ func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 
 
 func getUserLoans(db *Database) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-			return
-		}
+    return func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != http.MethodGet {
+            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+            return
+        }
 
-		userIDStr := r.URL.Query().Get("userID")
-		userID, err := strconv.Atoi(userIDStr)
-		if err != nil || userID <= 0 {
-			http.Error(w, "Invalid user ID", http.StatusBadRequest)
-			return
-		}
+        userIDStr := r.URL.Query().Get("userID")
+        userID, err := strconv.Atoi(userIDStr)
+        if err != nil || userID <= 0 {
+            http.Error(w, "Invalid user ID", http.StatusBadRequest)
+            return
+        }
 
-		query := `SELECT Amount, Duedate FROM loan WHERE UserID = ?`
-		rows, err := db.Query(query, userID)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("querying loans: %v", err), http.StatusInternalServerError)
-			return
-		}
-		defer rows.Close()
+        // Updated query to include Status column
+        query := `SELECT Amount, Duedate, Status FROM loan WHERE UserID = ?`
+        rows, err := db.Query(query, userID)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("querying loans: %v", err), http.StatusInternalServerError)
+            return
+        }
+        defer rows.Close()
 
-		var loans []LoanResponse
+        var loans []LoanResponse
 
-		for rows.Next() {
-			var amount float64
-			var dueDateStr string
+        for rows.Next() {
+            var amount float64
+            var dueDateStr, status string
 
-			if err := rows.Scan(&amount, &dueDateStr); err != nil {
-				http.Error(w, fmt.Sprintf("scanning loan row: %v", err), http.StatusInternalServerError)
-				return
-			}
+            if err := rows.Scan(&amount, &dueDateStr, &status); err != nil {
+                http.Error(w, fmt.Sprintf("scanning loan row: %v", err), http.StatusInternalServerError)
+                return
+            }
 
-			dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("parsing due date: %v", err), http.StatusInternalServerError)
-				return
-			}
+            dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
+            if err != nil {
+                http.Error(w, fmt.Sprintf("parsing due date: %v", err), http.StatusInternalServerError)
+                return
+            }
 
-			totalAmount, interestAmount, interestRate := calculateLoanDetails(amount, dueDate)
+            totalAmount, interestAmount, interestRate := calculateLoanDetails(amount, dueDate)
 
-			loans = append(loans, LoanResponse{
-				TotalAmount:    totalAmount,
-				DueDateTime:    dueDate.Format("2006-01-02 15:04:05"),
-				InitialAmount:  amount,
-				InterestRate:   interestRate,
-				InterestAmount: interestAmount,
-			})
-		}
+            loans = append(loans, LoanResponse{
+                TotalAmount:    totalAmount,
+                DueDateTime:    dueDate.Format("2006-01-02 15:04:05"),
+                InitialAmount:  amount,
+                InterestRate:   interestRate,
+                InterestAmount: interestAmount,
+                Status:         status, // Include the loan status in the response
+            })
+        }
 
-		if err := rows.Err(); err != nil {
-			http.Error(w, fmt.Sprintf("error iterating rows: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if len(loans) == 0 {
-			json.NewEncoder(w).Encode([]LoanResponse{})
-			return
-		}
-		json.NewEncoder(w).Encode(loans)
-	}
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(loans)
+    }
 }
+
 
 func (db *Database) checkLoanDetails(request LoanRequest) (LoanResponse, error) {
 	dueDateTime, err := time.Parse("2006-01-02 15:04", request.DueDateTime)
@@ -529,6 +524,8 @@ func (db *Database) checkLoanDetails(request LoanRequest) (LoanResponse, error) 
 		InitialAmount:  request.InitialAmount,
 		InterestRate:   interestRate,
 		InterestAmount: interestAmount,
+		Status:         "pending",
+		
 	}, nil
 }
 
@@ -559,11 +556,12 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 		InitialAmount:  request.InitialAmount,
 		InterestRate:   interestRate,
 		InterestAmount: interestAmount,
+		Status:         "pending",
 	}, nil
 }
 
 // PAYMENT
-func checkPaymentDetails(db *Database) http.HandlerFunc {
+func confirmPaymentDetails(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
 
@@ -1101,7 +1099,7 @@ func main() {
 	})
 
 	//PAYMENT
-	http.HandleFunc("/checkPaymentDetails", checkPaymentDetails(database))
+	http.HandleFunc("/confirmPaymentDetails", confirmPaymentDetails(database))
 
 	// Register your handlers
 	http.HandleFunc("/makePayment", makePayment(database))

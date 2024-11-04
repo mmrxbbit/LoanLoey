@@ -129,7 +129,9 @@ This API allows users to manage their loan applications, account information, an
         "due_date_time": "2022-01-01 15:00",
         "initial_amount": 10000,
         "interest_rate": 0.05,
-        "interest": 500
+        "interest": 500,
+        "status": "pending"
+
     }
     ```
 
@@ -138,17 +140,32 @@ This API allows users to manage their loan applications, account information, an
 - **Method**: `GET`
 - **Response**:
     ```json
-    [
-        {
-            "total": 10500,
-            "due_date_time": "2022-01-01 15:00",
-            "initial_amount": 10000,
-            "interest_rate": 0.05,
-            "interest": 500
-        },
-        ...
-    ]
-    ```
+
+    {
+        "total": 4160,
+        "due_date_time": "2030-11-18 12:30:00",
+        "initial_amount": 4000,
+        "interest_rate": 0.04,
+        "interest": 160,
+        "status": "pending"
+    },
+    {
+        "total": 42400,
+        "due_date_time": "2030-11-18 12:30:00",
+        "initial_amount": 40000,
+        "interest_rate": 0.06,
+        "interest": 2400,
+        "status": "pending"
+    },
+    {
+        "total": 42400,
+        "due_date_time": "2030-11-18 12:30:00",
+        "initial_amount": 40000,
+        "interest_rate": 0.06,
+        "interest": 2400,
+        "status": "pending"
+    },
+    '''
 ### 8.Get User Total Loan
 
 - **URL**: `http://localhost:8080/getUserTotalLoan?userID=3`
@@ -214,6 +231,8 @@ This API allows users to manage their loan applications, account information, an
             "initial_amount": 4000,
             "interest_rate": 0.04,
             "interest": 160
+            "status": "pending"
+          
         }
         ```
     ### 12. Check Payment Details
