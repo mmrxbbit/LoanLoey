@@ -3,6 +3,7 @@ import Link from "next/link";
 import React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import BirthDatePicker from "../../components/DatePicker";
 
 export default function Signup() {
   return (
@@ -31,21 +32,28 @@ export default function Signup() {
             placeholder="Phone no."
             className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
           />
-          <input
-            type="date"
-            placeholder="Birth Date"
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
+
+          <BirthDatePicker />
+
           <input
             type="text"
             placeholder="Address"
             className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
           />
-          <input
-            type="text"
-            placeholder="Bank Name"
+
+          <select
+            defaultValue=""
             className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
+          >
+            <option value="" disabled>
+              Select Bank
+            </option>
+            <option value="bank1">Kasikuay</option>
+            <option value="bank2">Krungtuay</option>
+            <option value="bank3">SCBuay</option>
+            <option value="bank4">Aomsuay</option>
+          </select>
+
           <input
             type="text"
             placeholder="Bank Account No."
