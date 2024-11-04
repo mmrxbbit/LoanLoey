@@ -260,3 +260,37 @@ This API allows users to manage their loan applications, account information, an
             "total_loan": 1229760
         }
         ```
+
+    ### 16. Get All User Info for Admin
+
+    - **URL**: `http://localhost:8080/getAllUserInfoForAdmin`
+    - **Method**: `GET`
+    - **Response**:
+        ```json
+        [
+            {
+                "username": "john_doe2",
+                "total_loan": 1355760,
+                "total_loan_remain": 892960,
+                "risk_level": "red"
+            },
+            {
+                "username": "john_doe2",
+                "total_loan": 0,
+                "total_loan_remain": 0,
+                "risk_level": "green"
+            },
+            {
+                "username": "test",
+                "total_loan": 84000,
+                "total_loan_remain": 84000,
+                "risk_level": "green"
+            },
+            {
+                "username": "test",
+                "total_loan": 0,
+                "total_loan_remain": 0,
+                "risk_level": "green"
+            }
+        ]
+        ```

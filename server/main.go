@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"sort"
 
 	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
@@ -51,6 +52,13 @@ type LoanResponse struct {
 	InitialAmount  float64 `json:"initial_amount"`
 	InterestRate   float64 `json:"interest_rate"`
 	InterestAmount float64 `json:"interest"`
+}
+
+type UserInfoForAdmin struct {
+	Username        string  `json:"username"`
+	TotalLoan       float64 `json:"total_loan"`
+	TotalLoanRemain float64 `json:"total_loan_remain"`
+	RiskLevel       string  `json:"risk_level"`
 }
 
 // Database struct wraps the SQL database connection
@@ -241,6 +249,66 @@ func (db *Database) GetUserCreditLevel(userID int) (string, error) {
 }
 return creditLevel, nil
 }
+
+func (db *Database) getAllUserInfoForAdmin() ([]UserInfoForAdmin, error) {
+	query := `SELECT u.UserID, a.Username FROM user u JOIN account a ON u.AccountID = a.AccountID`
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("querying users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []UserInfoForAdmin
+
+	for rows.Next() {
+		var userID int
+		var username string
+
+		if err := rows.Scan(&userID, &username); err != nil {
+			return nil, fmt.Errorf("scanning user row: %w", err)
+		}
+		
+		totalLoan, err := db.GetUserTotalLoanHistory(userID)
+		if err != nil {
+			return nil, fmt.Errorf("getting user total loan history: %w", err)
+		}
+
+		totalLoanRemain, err := db.GetUserTotalLoan(userID)
+		if err != nil {
+			return nil, fmt.Errorf("getting user total loan remain: %w", err)
+		}
+
+		creditLevel, err := db.GetUserCreditLevel(userID)
+		if err != nil {
+			return nil, fmt.Errorf("getting user credit level: %w", err)
+		}
+
+		// Create UserInfoForAdmin struct with ordered fields
+		userInfo := UserInfoForAdmin{
+			Username:        username,
+			TotalLoan:       totalLoan,
+			TotalLoanRemain: totalLoanRemain,
+			RiskLevel:       creditLevel,
+		}
+
+		users = append(users, userInfo)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	// Sort the users slice by username
+	sort.Slice(users, func(i, j int) bool {
+		return users[i].Username < users[j].Username
+	})
+
+	return users, nil
+}
+
+
+
+
 
 //ADMIN
 
@@ -864,6 +932,23 @@ func main() {
 		response := map[string]string{"credit_level": creditLevel}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
+	})
+
+	// HTTP route to get all user information for admin
+	http.HandleFunc("/getAllUserInfoForAdmin", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		users, err := database.getAllUserInfoForAdmin()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get all user info: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
 	})
 		
 
