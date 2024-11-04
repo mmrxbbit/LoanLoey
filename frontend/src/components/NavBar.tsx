@@ -34,14 +34,14 @@ export default function NavBar() {
             </MenuButton>
 
             <MenuItems
+              key="dropdownmenu"
               transition
               className="absolute right-0 mt-2 w-48 origin-top-right divide-y divide-gray-300 rounded-md bg-gray-100 shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
             >
               {PageName.map((page) => (
-                <div>
-                  <MenuItem>
+                <div key={page.name}>
+                  <MenuItem key={page.name}>
                     <Link
-                      key={page.name}
                       href={page.path}
                       className="block px-4 py-2 text-sm font-bold text-gray-700 data-[focus]:bg-gray-200 data-[focus]:text-gray-900 data-[focus]:outline-none"
                     >
@@ -51,8 +51,8 @@ export default function NavBar() {
                 </div>
               ))}
 
-              <div>
-                <MenuItem>
+              <div key="delete">
+                <MenuItem key="delete">
                   <a
                     href="#"
                     className="block px-4 py-2 text-sm font-bold text-red-500 data-[focus]:bg-gray-200 data-[focus]:text-red-500 data-[focus]:outline-none"
