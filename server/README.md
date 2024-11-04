@@ -48,17 +48,22 @@ This API allows users to manage their loan applications, account information, an
     }
     ```
 
-### 3. User Login
-- **URL**: `http://localhost:8080/login`
-- **Method**: `POST`
-- **Request Body**:
-    ```json
-    {
-        "username": "john_doe",
-        "password": "securepassword"
-    }
-    ```
-- **Response**: Redirects to either `/homepage` or `/adminpage`.
+    ### 3. User Login
+    - **URL**: `http://localhost:8080/login`
+    - **Method**: `POST`
+    - **Request Body**:
+        ```json
+        {
+            "username": "test",
+            "password": "securePassword123"
+        }
+        ```
+    - **Response**:
+        ```json
+        {
+            "role": "user"
+        }
+        ```
 
 ### 4. Get User Info
 - **URL**: `http://localhost:8080/getUserInfo?userID=3`

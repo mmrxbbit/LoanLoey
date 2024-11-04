@@ -134,34 +134,65 @@ func (db *Database) Signup(userAccount UserAccount) error {
 	return nil
 }
 
-// DeleteAccount function to delete an account based on account ID
+// DeleteAccount function to delete an account and all related information
 func (db *Database) DeleteAccount(accountID int) error {
-	// Delete from user table if exists
-	userQuery := `DELETE FROM user WHERE AccountID = ?`
-	_, err := db.Exec(userQuery, accountID)
+	var userID int64
+
+	// Get the UserID associated with the AccountID
+	err := db.QueryRow(`SELECT UserID FROM user WHERE AccountID = ?`, accountID).Scan(&userID)
 	if err != nil {
-		return fmt.Errorf("deleting from user table: %w", err)
+		return fmt.Errorf("fetching UserID for AccountID %d: %w", accountID, err)
+	}
+
+	// Check if the user has any pending loans
+	var pendingLoans int
+	query := `SELECT COUNT(*) FROM loan WHERE UserID = ? AND Status = 'pending'`
+	err = db.QueryRow(query, userID).Scan(&pendingLoans)
+	if err != nil {
+		return fmt.Errorf("checking pending loans: %w", err)
+	}
+
+	if pendingLoans > 0 {
+		return fmt.Errorf("cannot delete account with pending loans")
+	}
+
+	// Delete payments related to the user's loans
+	_, err = db.Exec(`DELETE FROM payment WHERE LoanID IN (SELECT LoanID FROM loan WHERE UserID = ?)`, userID)
+	if err != nil {
+		return fmt.Errorf("deleting payments: %w", err)
+	}
+
+	// Delete loans related to the user
+	_, err = db.Exec(`DELETE FROM loan WHERE UserID = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("deleting loans: %w", err)
 	}
 
 	// Delete from admin table if exists
-	adminQuery := `DELETE FROM admin WHERE AccountID = ?`
-	_, err = db.Exec(adminQuery, accountID)
+	_, err = db.Exec(`DELETE FROM admin WHERE AccountID = ?`, accountID)
 	if err != nil {
-		return fmt.Errorf("deleting from admin table: %w", err)
+		return fmt.Errorf("deleting from admin: %w", err)
 	}
 
-	// Finally, delete from account table
-	accountQuery := `DELETE FROM account WHERE AccountID = ?`
-	_, err = db.Exec(accountQuery, accountID)
+	// Delete from user table
+	_, err = db.Exec(`DELETE FROM user WHERE AccountID = ?`, accountID)
 	if err != nil {
-		return fmt.Errorf("deleting from account table: %w", err)
+		return fmt.Errorf("deleting from user: %w", err)
+	}
+
+	// Delete from account table
+	_, err = db.Exec(`DELETE FROM account WHERE AccountID = ?`, accountID)
+	if err != nil {
+		return fmt.Errorf("deleting from account: %w", err)
 	}
 
 	return nil
 }
 
+
+
 // Login function for user login
-func (db *Database) Login(username, password string) (string, error) {
+func (db *Database) Login(username, password string) (map[string]string, error) {
 	var storedHash string
 	var accountID int64
 	var isAdmin bool
@@ -170,26 +201,29 @@ func (db *Database) Login(username, password string) (string, error) {
 	query := `SELECT PasswordHash, AccountID FROM account WHERE Username = ?`
 	err := db.QueryRow(query, username).Scan(&storedHash, &accountID)
 	if err != nil {
-		return "", fmt.Errorf("querying for username %s: %w", username, err)
+		return nil, fmt.Errorf("querying for username %s: %w", username, err)
 	}
 
 	// Compare the provided password with the stored hash
 	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
-		return "", fmt.Errorf("invalid credentials: %w", err)
+		return nil, fmt.Errorf("invalid credentials: %w", err)
 	}
 
 	// Check if the user is an admin
 	adminQuery := `SELECT COUNT(*) FROM admin WHERE AccountID = ?`
 	err = db.QueryRow(adminQuery, accountID).Scan(&isAdmin)
 	if err != nil {
-		return "", fmt.Errorf("checking admin status: %w", err)
+		return nil, fmt.Errorf("checking admin status: %w", err)
 	}
 
+	role := "user"
 	if isAdmin {
-		return "admin", nil
+		role = "admin"
 	}
-	return "user", nil
+
+	return map[string]string{"role": role}, nil
 }
+
 
 //USER
 
@@ -822,7 +856,6 @@ func main() {
 			Username string `json:"username"`
 			Password string `json:"password"`
 		}
-
 		if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
@@ -834,21 +867,17 @@ func main() {
 			return
 		}
 
-		// Redirect based on the role
-		redirectPath := "/homepage"
-		if role == "admin" {
-			redirectPath = "/adminpage"
-		}
-		http.Redirect(w, r, redirectPath, http.StatusFound)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(role)
 	})
 
-	http.HandleFunc("/adminpage", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Welcome to the Admin Page!")
-	})
+	// http.HandleFunc("/adminpage", func(w http.ResponseWriter, r *http.Request) {
+	// 	fmt.Fprintln(w, "Welcome to the Admin Page!")
+	// })
 
-	http.HandleFunc("/homepage", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "Welcome to the Home Page!")
-	})
+	// http.HandleFunc("/homepage", func(w http.ResponseWriter, r *http.Request) {
+	// 	fmt.Fprintln(w, "Welcome to the Home Page!")
+	// })
 
 	//USER
 
