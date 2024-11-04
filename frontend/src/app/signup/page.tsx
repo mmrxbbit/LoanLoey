@@ -67,12 +67,14 @@ export default function Signup() {
             className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
           />
 
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 py-2 rounded-md w-full text-white"
-          >
-            Sign up
-          </button>
+          <Link href="/home">
+            <button
+              type="button"
+              className="bg-[#FFD28F] hover:bg-[#dfa651] mt-4 py-2 rounded-md w-full text-black hover:text-white"
+            >
+              Sign up
+            </button>
+          </Link>
         </form>
 
         <p className="mt-4 text-center text-sm">
