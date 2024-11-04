@@ -312,4 +312,16 @@ This API allows users to manage their loan applications, account information, an
                 "risk_level": "green"
             }
         ]
-        ```
+### 17. Check Payment Details
+
+- **URL**: `http://localhost:8080/checkPaymentDetails?loanID=72`
+- **Method**: `GET`
+- **Response**:
+    ```json
+    {
+        "doPayment": "2024-11-04 01:32:18",
+        "loanID": 72,
+        "status": "intime"
+    }
+    ```
+```

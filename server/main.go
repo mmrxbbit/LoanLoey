@@ -560,7 +560,7 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 	}, nil
 }
 
-// PAYMENT
+//PAYMENT
 func confirmPaymentDetails(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
@@ -721,6 +721,28 @@ func makePayment(db *Database) http.HandlerFunc {
         json.NewEncoder(w).Encode(response)
     }
 }
+func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, error) {
+	query := `SELECT LoanID, DOPayment, Status FROM payment WHERE LoanID = ?`
+	var loanIDFromDB int
+	var doPayment, status string
+
+	err := db.QueryRow(query, loanID).Scan(&loanIDFromDB, &doPayment, &status)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("no payment found for LoanID %d", loanID)
+		}
+		return nil, fmt.Errorf("querying payment details: %w", err)
+	}
+
+	response := map[string]interface{}{
+		"loanID":    loanIDFromDB,
+		"doPayment": doPayment,
+		"status":    status,
+	}
+
+	return response, nil
+}
+
 
 
 
@@ -1103,6 +1125,34 @@ func main() {
 
 	// Register your handlers
 	http.HandleFunc("/makePayment", makePayment(database))
+
+	http.HandleFunc("/checkPaymentDetails", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		loanIDStr := r.URL.Query().Get("loanID")
+		if loanIDStr == "" {
+			http.Error(w, "LoanID is required", http.StatusBadRequest)
+			return
+		}
+
+		loanID, err := strconv.Atoi(loanIDStr)
+		if err != nil {
+			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
+			return
+		}
+
+		response, err := database.checkPaymentDetails(loanID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to check payment details: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
 
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
