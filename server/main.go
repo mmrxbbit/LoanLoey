@@ -100,10 +100,20 @@ func roundToTwoDecimalPlaces(value float64) float64 {
 
 // Signup function to create a new account
 func (db *Database) Signup(userAccount UserAccount) error {
+	// Check if the username already exists
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM account WHERE Username = ?)`
+	err := db.QueryRow(query, userAccount.Username).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("checking username existence: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("username %s is already taken", userAccount.Username)
+	}
+
 	// Hash the password if it is provided
 	var hashedPassword []byte
 	if userAccount.Password != "" {
-		var err error
 		hashedPassword, err = bcrypt.GenerateFromPassword([]byte(userAccount.Password), bcrypt.DefaultCost)
 		if err != nil {
 			return fmt.Errorf("hashing password: %w", err)
@@ -111,8 +121,8 @@ func (db *Database) Signup(userAccount UserAccount) error {
 	}
 
 	// Insert account into the database
-	query := `INSERT INTO account (Username, PasswordHash) VALUES (?, ?)`
-	result, err := db.Exec(query, userAccount.Username, hashedPassword)
+	accountQuery := `INSERT INTO account (Username, PasswordHash) VALUES (?, ?)`
+	result, err := db.Exec(accountQuery, userAccount.Username, hashedPassword)
 	if err != nil {
 		return fmt.Errorf("inserting account: %w", err)
 	}
@@ -133,6 +143,7 @@ func (db *Database) Signup(userAccount UserAccount) error {
 
 	return nil
 }
+
 
 // DeleteAccount function to delete an account and all related information
 func (db *Database) DeleteAccount(accountID int) error {
@@ -349,6 +360,17 @@ func (db *Database) getAllUserInfoForAdmin() ([]UserInfoForAdmin, error) {
 
 // CreateAdmin function to create a new admin account
 func (db *Database) CreateAdmin(admin Admin) error {
+	// Check if the username already exists
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM account WHERE Username = ?)`
+	err := db.QueryRow(query, admin.Username).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("checking username existence: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("username %s is already taken", admin.Username)
+	}
+
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(admin.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -356,8 +378,8 @@ func (db *Database) CreateAdmin(admin Admin) error {
 	}
 
 	// Insert account into the database
-	query := `INSERT INTO account (Username, PasswordHash) VALUES (?, ?)`
-	result, err := db.Exec(query, admin.Username, hashedPassword)
+	accountQuery := `INSERT INTO account (Username, PasswordHash) VALUES (?, ?)`
+	result, err := db.Exec(accountQuery, admin.Username, hashedPassword)
 	if err != nil {
 		return fmt.Errorf("inserting account: %w", err)
 	}
@@ -377,6 +399,7 @@ func (db *Database) CreateAdmin(admin Admin) error {
 
 	return nil
 }
+
 
 //LOAN
 
