@@ -13,43 +13,68 @@ import {
   DialogTitle,
 } from "@headlessui/react";
 import DateTimePicker from "../../components/DateTimePicker";
+import { ZonedDateTime } from "@internationalized/date";
+import { min } from "date-fns";
 
 export default function Borrow() {
   const [showOverlay1, setShowOverlay1] = useState(false);
   const [showOverlay2, setShowOverlay2] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const [overlayData, setOverlayData] = useState(null); // Store data to pass to the overlay
-  const [amount, setAmount] = useState("");
-  const [duedate, setDuedate] = useState("");
+  const [amount, setAmount] = useState(null);
+  const [returnDate, setReturnDate] = useState(null);
+
+  const interestRate = 0.02;
+  const minAmount = 1000;
+
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   // Handle input change
-  const handleAmounttChange = (e) => {
-    setAmount(e.target.value);
+  const handleAmountChange = (e) => {
+    const fvalue = parseInt(e.target.value);
+    setAmount(fvalue);
+    setMessage("");
   };
-  const handleDuedateChange = (e) => {
-    setDuedate(e.target.value);
+  const handleDateChange = (date: ZonedDateTime) => {
+    setReturnDate(formatter.format(date.toDate()));
+  };
+
+  // Calculate interest
+  const calculateInterest = () => {
+    return amount * interestRate;
   };
 
   // Handle the submit button click
   const openOverlay1 = (event) => {
     event.preventDefault(); // Prevent form submission
-    setOverlayData({ amount, duedate }); // Store the data to pass to the overlay
+    if (amount < minAmount) {
+      setMessage("You must borrow at least 1000");
+      return; // Prevent oveylay from opening
+    }
     setShowOverlay1(true);
   };
 
+  // close overlay 1 open overlay 2
   const confirmOverlay1 = (event) => {
     event.preventDefault();
     setShowOverlay1(false);
     setShowOverlay2(true);
   };
 
-  const closeOverlay2 = (event) => {
+  // close overlay 2
+  const closeOverlay2 = () => {
     setShowOverlay2(false);
   };
 
   return (
     <>
-      <NavBar></NavBar>
+      <NavBar />
       <div className="flex flex-col items-center min-h-screen">
         <Image src={logo_white} alt="logo" width={250} height={250} />
         <div className="rounded-md w-full max-w-lg">
@@ -57,24 +82,28 @@ export default function Borrow() {
             How much and How long?
           </h1>
           <form className="space-y-4">
-            <div className="flex flex-row items-center gap-x-4">
-              <label className="w-1/4 font-semibold text-xl whitespace-nowrap">
+            <div className="grid grid-cols-4 items-center gap-x-4">
+              <label className="col-span-1 w-1/4 font-semibold text-xl whitespace-nowrap">
                 Amount
               </label>
               <input
-                type="text"
+                type="number"
                 name="amount"
-                value={amount}
-                onChange={handleAmounttChange}
-                placeholder="Amount you want to borrow"
-                className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+                required
+                min="1000"
+                value={message ? "" : amount}
+                onChange={handleAmountChange}
+                placeholder={message || "Amount you want borrow"}
+                className={`col-span-3 border border-2 border-gray-300 px-4 py-2 rounded-md w-full text-black hover:border-gray-400 [&::-webkit-inner-spin-button]:appearance-none ${
+                  message ? "border-red-500" : "border-gray-300"
+                }`}
               />
             </div>
-            <div className="flex flex-row items-center gap-x-4">
-              <label className="w-1/4 font-semibold text-xl whitespace-nowrap">
-                Due Date
+            <div className="grid grid-cols-4 items-center gap-x-4">
+              <label className="col-span-1 w-1/4 font-semibold text-xl whitespace-nowrap">
+                Return Date
               </label>
-              <DateTimePicker />
+              <DateTimePicker name="date" onSetDate={handleDateChange} />
             </div>
             <div className="flex justify-center">
               <button
@@ -97,50 +126,56 @@ export default function Borrow() {
         />
 
         <div className="z-10 fixed inset-0 w-screen overflow-y-auto">
-          <div className="flex justify-center items-center sm:items-center p-4 sm:p-0 min-h-full text-center">
+          <div className="flex justify-center items-center min-h-full">
             <DialogPanel
               transition
-              className="relative bg-white data-[closed]:opacity-0 shadow-xl sm:my-8 rounded-lg sm:w-full sm:max-w-lg text-left transform transition-all data-[closed]:sm:translate-y-0 data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
+              className="relative w-1/3 rounded-md border border-gray-300 bg-white data-[closed]:opacity-0 shadow-xl text-left transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
             >
-              <div className="bg-white px-6 sm:p-6 pt-5 pb-3 sm:pb-4">
-                <div className="mt-3 sm:mt-0 sm:ml-4 text-center sm:text-left">
+              <div className="bg-white px-6 pt-2 pb-3">
+                <div className="mt-2 text-center">
                   <DialogTitle
                     as="h3"
-                    className="font-semibold text-base text-gray-900"
+                    className="font-semibold text-xl text-center text-gray-900"
                   >
                     Summary
                   </DialogTitle>
-                  <div className="grid grid-cols-2 mt-2">
-                    <div className="flex flex-col gap-x-1">
-                      <p className="text-sm">Total</p>
-                      <p className="text-sm">Due Date</p>
-                      <p className="text-sm">Initial Amount</p>
-                      <p className="text-sm">Interest Rate</p>
-                      <p className="text-sm">Interest</p>
+                  <div className="grid grid-cols-2 mt-4">
+                    <div className="flex flex-col gap-x-1 text-left">
+                      <p className="text-base font-semibold">Total</p>
+                      <p className="text-base font-semibold">Due Date</p>
+                      <p className="text-base font-semibold">Initial Amount</p>
+                      <p className="text-base font-semibold">Interest Rate</p>
+                      <p className="text-base font-semibold">Interest</p>
                     </div>
-                    <div className="flex flex-col gap-x-1">
-                      <p className="text-sm">100</p>
-                      <p className="text-sm">{overlayData?.duedate}</p>
-                      <p className="text-sm">{overlayData?.amount}</p>
-                      <p className="text-sm">2%</p>
-                      <p className="text-sm">100</p>
+                    <div className="flex flex-col gap-x-1 text-left">
+                      <p className="text-base font-semibold">
+                        {amount + calculateInterest()}
+                      </p>
+                      <p className="text-base font-semibold">
+                        {returnDate ? returnDate : "No date selected"}
+                      </p>
+                      <p className="text-base font-semibold">{amount}</p>
+                      <p className="text-base font-semibold">2%</p>
+                      <p className="text-base font-semibold">
+                        {calculateInterest()}
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
               <hr></hr>
-              <div className="flex flex-row gap-x-4 bg-white px-4 py-3">
+              <div className="flex flex-row justify-center gap-x-4 bg-white px-4 py-3">
                 <button
                   type="button"
                   onClick={() => setShowOverlay1(false)}
-                  className="inline-flex justify-center bg-red-600 hover:bg-red-500 shadow-sm sm:ml-3 px-3 py-2 rounded-md w-full sm:w-auto font-semibold text-sm text-white"
+                  className="inline-flex justify-center bg-red-600 hover:bg-red-500 shadow-sm px-3 py-2 rounded-md w-full font-semibold text-sm text-white"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={(event) => confirmOverlay1(event)}
-                  className="inline-flex justify-center bg-emerald-700 hover:bg-gray-50 shadow-sm mt-3 sm:mt-0 px-3 py-2 rounded-md ring-1 ring-gray-300 ring-inset w-full sm:w-auto font-semibold text-sm text-white"
+                  className="inline-flex justify-center bg-emerald-700 hover:bg-emerald-600 shadow-sm px-3 py-2 rounded-md w-full font-semibold text-sm text-white"
                 >
                   Confirm
                 </button>

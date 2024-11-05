@@ -6,6 +6,7 @@ export default function BirthDatePicker() {
       <DatePicker
         label="Birth Date"
         variant="bordered"
+        isRequired
         showMonthAndYearPickers
       />
     </div>
