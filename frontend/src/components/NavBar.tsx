@@ -1,8 +1,10 @@
-import React from "react";
+import React, { use, useEffect, useState } from "react";
 import Image from "next/image";
 import dropdownIcon from "../../public/dropdown.svg";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import Link from "next/link";
+
+const headerInfo = [{ credit: "green", username: "john_doe", debt: 20000 }];
 
 export default function NavBar() {
   const PageName = [
@@ -12,18 +14,40 @@ export default function NavBar() {
     { name: "User Debt", path: "/userdebt" },
   ];
 
+  const { credit, username, debt } = headerInfo[0];
+  const [creditColor, setcreditColor] = useState("");
+  const [debtMessage, setDebtMessage] = useState("");
+
+  useEffect(() => {
+    if (credit === "green") {
+      setcreditColor("bg-green-400");
+    } else if (credit === "yellow") {
+      setcreditColor("bg-yellow-400");
+    } else {
+      setcreditColor("bg-red-600");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debt > 0) {
+      setDebtMessage("You have debt!!");
+    } else {
+      setDebtMessage("You have no debt");
+    }
+  }, []);
+
   return (
     <>
       <header className="p-3 bg-black text-white items-center">
-        <nav className="flex flex-row justify-between ">
-          <div className="flex flex-row items-center gap-1">
-            <div className="bg-green-400 w-4 h-4 rounded-full"></div>
-            <p className="font-bold">Username</p>
+        <nav className="flex flex-row justify-between">
+          <div className="flex flex-row items-center gap-2">
+            <div className={`${creditColor} w-4 h-4 rounded-full`}></div>
+            <p className="font-semibold">{username}</p>
           </div>
 
-          <p className="items-center font-bold">Debt Status</p>
+          <p className="flex items-center font-semibold">{debtMessage}</p>
 
-          <Menu as="div" className="relative">
+          <Menu as="div" className="flex justify-center">
             <MenuButton>
               <Image
                 src={dropdownIcon}

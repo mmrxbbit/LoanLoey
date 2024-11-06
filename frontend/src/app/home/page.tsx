@@ -15,7 +15,7 @@ export default function Home() {
         alt="home"
         width="1000"
         height="1000"
-        className="absolute w-screen h-screen"
+        className="absolute w-auto h-screen"
       />
       <div className="flex justify-center grid grid-rows-3 bg-black w-screen h-screen">
         <div className="row-span-2"></div>
