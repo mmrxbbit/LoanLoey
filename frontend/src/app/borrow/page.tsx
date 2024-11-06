@@ -14,7 +14,6 @@ import {
 } from "@headlessui/react";
 import DateTimePicker from "../../components/DateTimePicker";
 import { ZonedDateTime } from "@internationalized/date";
-import { min } from "date-fns";
 
 export default function Borrow() {
   const [showOverlay1, setShowOverlay1] = useState(false);
@@ -22,7 +21,7 @@ export default function Borrow() {
   const [message, setMessage] = useState("");
 
   const [amount, setAmount] = useState(0);
-  const [returnDate, setReturnDate] = useState(null);
+  const [returnDate, setReturnDate] = useState("");
 
   const interestRate = 0.02;
   const minAmount = 1000;
