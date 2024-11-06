@@ -21,7 +21,7 @@ export default function Borrow() {
   const [showOverlay2, setShowOverlay2] = useState(false);
   const [message, setMessage] = useState("");
 
-  const [amount, setAmount] = useState(null);
+  const [amount, setAmount] = useState(0);
   const [returnDate, setReturnDate] = useState(null);
 
   const interestRate = 0.02;
@@ -75,7 +75,7 @@ export default function Borrow() {
   return (
     <>
       <NavBar />
-      <div className="flex flex-col items-center min-h-screen">
+      <div className="flex flex-col items-center h-auto">
         <Image src={logo_white} alt="logo" width={250} height={250} />
         <div className="rounded-md w-full max-w-lg">
           <h1 className="mb-8 font-semibold text-2xl">
@@ -125,13 +125,13 @@ export default function Borrow() {
           className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[enter]:ease-out data-[leave]:ease-in"
         />
 
-        <div className="z-10 fixed inset-0 w-screen overflow-y-auto">
+        <div className="fixed z-10 inset-0 w-screen overflow-y-auto">
           <div className="flex justify-center items-center min-h-full">
             <DialogPanel
               transition
-              className="relative w-1/3 rounded-md border border-gray-300 bg-white data-[closed]:opacity-0 shadow-xl text-left transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
+              className="relative transform overflow-hidden rounded-md border border-gray-300 bg-white shadow-xl transform transition-all data-[closed]:opacity-0 data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
             >
-              <div className="bg-white px-6 pt-2 pb-3">
+              <div className="bg-white px-10 pt-2 pb-4">
                 <div className="mt-2 text-center">
                   <DialogTitle
                     as="h3"
@@ -140,23 +140,23 @@ export default function Borrow() {
                     Summary
                   </DialogTitle>
                   <div className="grid grid-cols-2 mt-4">
-                    <div className="flex flex-col gap-x-1 text-left">
+                    <div className="flex flex-col gap-y-2 text-left">
                       <p className="text-base font-semibold">Total</p>
                       <p className="text-base font-semibold">Due Date</p>
                       <p className="text-base font-semibold">Initial Amount</p>
                       <p className="text-base font-semibold">Interest Rate</p>
                       <p className="text-base font-semibold">Interest</p>
                     </div>
-                    <div className="flex flex-col gap-x-1 text-left">
-                      <p className="text-base font-semibold">
+                    <div className="flex flex-col gap-y-2 text-left">
+                      <p className="text-base font-base">
                         {amount + calculateInterest()}
                       </p>
-                      <p className="text-base font-semibold">
+                      <p className="text-base font-base">
                         {returnDate ? returnDate : "No date selected"}
                       </p>
-                      <p className="text-base font-semibold">{amount}</p>
-                      <p className="text-base font-semibold">2%</p>
-                      <p className="text-base font-semibold">
+                      <p className="text-base font-base">{amount}</p>
+                      <p className="text-base font-base">2%</p>
+                      <p className="text-base font-base">
                         {calculateInterest()}
                       </p>
                     </div>
@@ -164,7 +164,7 @@ export default function Borrow() {
                 </div>
               </div>
               <hr></hr>
-              <div className="flex flex-row justify-center gap-x-4 bg-white px-4 py-3">
+              <div className="flex flex-row justify-center gap-x-10 bg-white px-10 py-4">
                 <button
                   type="button"
                   onClick={() => setShowOverlay1(false)}

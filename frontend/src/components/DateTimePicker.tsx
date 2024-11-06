@@ -1,4 +1,4 @@
-import { DatePicker } from "@nextui-org/react";
+import { DatePicker } from "@nextui-org/date-picker/dist";
 import {
   now,
   today,
@@ -24,8 +24,8 @@ export default function DateTimePicker({
   };
 
   return (
-    <>
-      <div className="col-span-3 gap-4 w-full max-w-xl">
+    <div className="col-span-3 gap-4 w-full max-w-xl">
+      <div>
         <DatePicker
           label="Due Date"
           variant="bordered"
@@ -37,11 +37,12 @@ export default function DateTimePicker({
           onChange={handleDatetimeChange}
         />
       </div>
+
       <input
         type="hidden"
         name={name}
         value={dateTimeToString(datetime)}
       ></input>
-    </>
+    </div>
   );
 }

@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
-    "@internationalized/date": "^3.0.0-nightly.2967",
+    "@internationalized/date": "^3.5.6",
     "@nextui-org/date-picker": "^2.1.8",
     "@nextui-org/react": "^2.4.8",
     "@nextui-org/system": "^2.2.6",
