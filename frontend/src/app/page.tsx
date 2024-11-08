@@ -1,7 +1,7 @@
 // src/app/page.tsx
 import React from "react";
-import Login from "./login/page"; // Make sure to import from login/page
+import Home from "./home/page";
 
-export default function LoginPage() {
-  return <Login />;
+export default function HomePage() {
+  return <Home />;
 }
