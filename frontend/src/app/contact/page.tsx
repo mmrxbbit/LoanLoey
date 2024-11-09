@@ -42,7 +42,7 @@ export default function ContactPage() {
           </p>
 
           <h2 className="mt-8 mb-4 font-bold text-2xl">Map</h2>
-          <div className="bg-gray-500 w-auto h-auto ml-2 mr-8">
+          <div className="bg-gray-500 mr-8 ml-2 w-auto h-auto">
             <img src="/img4.png" alt="map" className="w-auto h-auto"></img>
           </div>
         </div>

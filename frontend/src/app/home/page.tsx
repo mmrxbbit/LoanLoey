@@ -22,8 +22,8 @@ export default function Home() {
           </div>
         </section>
         <section className="bg-black px-16 py-20 text-white">
-          <h2 className="font-semibold text-3xl px-4">Who are we</h2>
-          <p className="mt-4 text-lg italic px-12">
+          <h2 className="px-4 font-semibold text-3xl">Who are we</h2>
+          <p className="mt-4 px-12 text-lg italic">
             <span className="inline-flex items-center">
               <Image src={qoute1} alt="qoute" width={16} height={16} />
             </span>
@@ -44,9 +44,9 @@ export default function Home() {
             </span>
           </p>
         </section>
-        <section className="bg-black px-16 py-20 text-white text-right">
-          <h2 className="font-semibold text-3xl px-4">What do we offer</h2>
-          <p className="mt-4 text-lg italic px-12">
+        <section className="text-right bg-black px-16 py-20 text-white">
+          <h2 className="px-4 font-semibold text-3xl">What do we offer</h2>
+          <p className="mt-4 px-12 text-lg italic">
             <span className="inline-flex items-center">
               <Image src={qoute1} alt="qoute" width={16} height={16} />
             </span>

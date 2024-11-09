@@ -99,30 +99,30 @@ function DebtInfo(props: Props) {
 
   return (
     <>
-      <div className="w-full px-2 py-4 border-1 border-b-gray-300 border-t-white border-r-white border-l-white flex flex-row">
+      <div className="flex flex-row border-1 px-2 py-4 border-t-white border-r-white border-b-gray-300 border-l-white w-full">
         {/* debt info */}
         <div className="grid grid-cols-2 text-nowrap">
-          <div className="w-48 flex flex-col gap-y-2 text-left">
-            <p className="text-base font-semibold">Total</p>
-            <p className="text-base font-semibold">Due Date</p>
-            <p className="text-base font-semibold">Initial Amount</p>
-            <p className="text-base font-semibold">Interest Rate</p>
-            <p className="text-base font-semibold">Interest</p>
+          <div className="flex flex-col gap-y-2 w-48 text-left">
+            <p className="font-semibold text-base">Total</p>
+            <p className="font-semibold text-base">Due Date</p>
+            <p className="font-semibold text-base">Initial Amount</p>
+            <p className="font-semibold text-base">Interest Rate</p>
+            <p className="font-semibold text-base">Interest</p>
           </div>
-          <div className="w-48 flex flex-col gap-y-2 text-left">
-            <p className="text-base font-base">{props.total[0]}</p>
-            <p className="text-base font-base">{props.dueDate}</p>
-            <p className="text-base font-base">{props.initAmount[0]}</p>
-            <p className="text-base font-base">{props.interestRate[0]}</p>
-            <p className="text-base font-base">{props.interest[0]}</p>
+          <div className="flex flex-col gap-y-2 w-48 text-left">
+            <p className="font-base text-base">{props.total[0]}</p>
+            <p className="font-base text-base">{props.dueDate}</p>
+            <p className="font-base text-base">{props.initAmount[0]}</p>
+            <p className="font-base text-base">{props.interestRate[0]}</p>
+            <p className="font-base text-base">{props.interest[0]}</p>
           </div>
         </div>
         <div className="w-3/6"></div>
         {/* pay button */}
-        <div className="w-1/6 flex flex-col-reverse justify-start items-center gap-y-1">
+        <div className="flex flex-col-reverse justify-start items-center gap-y-1 w-1/6">
           <button
             type="button"
-            className="flex justify-center w-24 h-8 bg-black text-white items-center rounded-md hover:bg-gray-700"
+            className="flex justify-center items-center bg-black hover:bg-gray-700 rounded-md w-24 h-8 text-white"
             onClick={!canPay ? undefined : (event) => openOverlay1(event)}
           >
             pay
@@ -137,29 +137,29 @@ function DebtInfo(props: Props) {
           className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[enter]:ease-out data-[leave]:ease-in"
         />
 
-        <div className="fixed z-10 inset-0 w-screen overflow-y-auto">
+        <div className="z-10 fixed inset-0 w-screen overflow-y-auto">
           <div className="flex justify-center items-center min-h-full">
             <DialogPanel
               transition
-              className="w-96 p-2 relative transform overflow-hidden rounded-md border border-gray-300 bg-white shadow-xl transform transition-all data-[closed]:opacity-0 data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
+              className="relative border-gray-300 bg-white data-[closed]:opacity-0 shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
             >
               <div className="bg-white px-10 pt-2 pb-4">
                 <div className="mt-2 text-center">
                   <DialogTitle
                     as="h3"
-                    className="font-semibold text-xl text-center text-gray-900"
+                    className="font-semibold text-center text-gray-900 text-xl"
                   >
                     Payment Confirmation
                   </DialogTitle>
-                  <div className="flex flex-row justify-start mt-4 gap-x-4">
+                  <div className="flex flex-row justify-start gap-x-4 mt-4">
                     <p className="font-semibold">Total</p>
                     <p className="font-base">total_num</p>
                   </div>
                   <div className="mt-2">
-                    <p className="text-sm text-left">
+                    <p className="text-left text-sm">
                       pay to [BankName] xxx-xxxx
                     </p>
-                    <p className="text-sm text-sky-400 text-left">
+                    <p className="text-left text-sky-400 text-sm">
                       upload paymet receipt
                     </p>
                   </div>
@@ -197,9 +197,9 @@ function DebtInfo(props: Props) {
           <div className="flex justify-center items-center sm:items-center p-4 sm:p-0 min-h-full text-center">
             <DialogPanel
               transition
-              className="w-96 p-2 relative transform overflow-hidden rounded-md border border-gray-300 bg-white shadow-xl transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
+              className="relative border-gray-300 bg-white shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
             >
-              <div className="flex flex-col justify-center p-4 gap-y-2">
+              <div className="flex flex-col justify-center gap-y-2 p-4">
                 <div className="flex justify-center w-full">
                   <Image
                     src={complete}
@@ -224,9 +224,9 @@ export default function Debt() {
   return (
     <>
       <NavBar />
-      <div className="w-auto h-auto px-12 mx-20">
-        <div className="w-full flex items-center justify-center">
-          <h1 className="text-center my-4 font-semibold text-xl">User Debt</h1>
+      <div className="mx-20 px-12 w-auto h-auto">
+        <div className="flex justify-center items-center w-full">
+          <h1 className="my-4 font-semibold text-center text-xl">User Debt</h1>
         </div>
         {debtData.map((loan) => (
           <DebtInfo
