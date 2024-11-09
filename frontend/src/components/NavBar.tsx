@@ -9,10 +9,10 @@ import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 
 const user = [
   {
-    userId: 1,
-    username: "john_doe",
-    credit: "yellow",
-    debt: 20000,
+    userId: null,
+    username: null,
+    credit: null,
+    debt: null,
   },
 ];
 
@@ -47,6 +47,7 @@ export default function NavBar() {
   const [showOverlay2, setShowOverlay2] = useState(false);
   const [showOverlay3, setShowOverlay3] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [rotation, setRotation] = useState(0);
   const router = useRouter();
 
   // Handle the delete button click
@@ -85,16 +86,16 @@ export default function NavBar() {
 
   return (
     <>
-      <nav className="flex justify-between items-center bg-[#FFD28F] py-1 px-4 text-white">
+      <nav className="flex justify-between items-center bg-[#FFD28F] px-4 py-1 text-white">
         <div className="flex flex-row items-center gap-x-2">
           <Image
             src={logo}
             alt="logo"
             width={35}
             height={35}
-            className="h-full w-auto py-1"
+            className="py-1 w-auto h-full"
           />
-          <span className="text-black font-semibold text-xl">LoanLoey</span>
+          <span className="font-semibold text-black text-xl">LoanLoey</span>
         </div>
         {/* Plain text */}
         <div className="flex items-center space-x-4">
@@ -110,16 +111,22 @@ export default function NavBar() {
           {isLoggedIn ? (
             <Menu
               as="div"
-              className="flex justify-center relative"
+              className="relative flex justify-center"
               style={{ zIndex: 20 }}
             >
               <MenuButton
                 className="flex items-center space-x-2"
-                onClick={() => setDropdownOpen(true)}
+                onClick={() => {
+                  setDropdownOpen(!dropdownOpen);
+                  setRotation((prevRotation) => (prevRotation === 0 ? 180 : 0)); // Toggle rotation between 0 and 180
+                }}
               >
                 <span className={`${creditColor} w-2 h-2 rounded-full`}></span>
                 <span className="text-black">{username}</span>
-                <span>
+                <span
+                  className="transition-transform duration-300"
+                  style={{ transform: `rotate(${rotation}deg)` }}
+                >
                   <Image
                     src={dropdownIcon}
                     alt="dropdown"
@@ -133,14 +140,14 @@ export default function NavBar() {
                 <MenuItems
                   key="dropdownmenu"
                   transition
-                  className="absolute top-full right-0 mt-2 w-48 origin-top-right divide-y divide-gray-300 rounded-md bg-white shadow-md ring-1 ring-black ring-opacity-5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
+                  className="top-full right-0 absolute bg-white ring-opacity-5 data-[closed]:opacity-0 shadow-md mt-2 rounded-md divide-y divide-gray-300 ring-1 ring-black w-48 data-[closed]:transform origin-top-right transition focus:outline-none data-[closed]:scale-95 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
                 >
                   {PageName.map((page) => (
                     <div key={page.name}>
                       <MenuItem key={page.name}>
                         <Link
                           href={page.path}
-                          className="block px-4 py-2 text-base font-base text-black data-[focus]:bg-gray-100 data-[focus]:text-gray-800 data-[focus]:rounded-md"
+                          className="block data-[focus]:bg-gray-100 px-4 py-2 data-[focus]:rounded-md font-base text-base text-black data-[focus]:text-gray-800"
                         >
                           {page.name}
                         </Link>
@@ -152,7 +159,7 @@ export default function NavBar() {
                     <MenuItem key="delete">
                       <a
                         onClick={openOverlay1}
-                        className="block px-4 py-2 text-base font-base text-red-500 data-[focus]:bg-gray-200 data-[focus]:text-red-500 data-[focus]:rounded-md cursor-pointer"
+                        className="block data-[focus]:bg-gray-200 px-4 py-2 data-[focus]:rounded-md font-base text-base text-red-500 data-[focus]:text-red-500 cursor-pointer"
                       >
                         Delete Account
                       </a>
@@ -163,7 +170,7 @@ export default function NavBar() {
             </Menu>
           ) : (
             <Link href="/login">
-              <div className="bg-black shadow-2xl px-4 py-1 rounded-lg text-center text-white cursor-pointer">
+              <div className="bg-black hover:bg-[#a1865d] shadow-7xl hover:shadow-lg px-4 py-1 rounded-lg text-center text-white transition-shadow duration-300 cursor-pointer">
                 Log In
               </div>
             </Link>
@@ -177,15 +184,15 @@ export default function NavBar() {
           className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[enter]:ease-out data-[leave]:ease-in"
         />
 
-        <div className="fixed z-10 inset-0 w-screen overflow-y-auto">
+        <div className="z-10 fixed inset-0 w-screen overflow-y-auto">
           <div className="flex justify-center items-center min-h-full">
             <DialogPanel
               transition
-              className="w-96 p-2 relative transform overflow-hidden rounded-md border border-gray-300 bg-white shadow-xl transform transition-all data-[closed]:opacity-0 data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
+              className="relative border-gray-300 bg-white data-[closed]:opacity-0 shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
             >
               <div className="bg-white px-10 pt-2 pb-4">
                 <div className="mt-2 text-center">
-                  <div className="flex justify-start mt-4 gap-x-4">
+                  <div className="flex justify-start gap-x-4 mt-4">
                     <p className="font-base text-xl">
                       Are you sure you want to{" "}
                       <span className="text-red-500">delete</span> this account?
@@ -225,9 +232,9 @@ export default function NavBar() {
           <div className="flex justify-center items-center sm:items-center p-4 sm:p-0 min-h-full text-center">
             <DialogPanel
               transition
-              className="w-96 p-2 relative transform overflow-hidden rounded-md border border-gray-300 bg-white shadow-xl transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
+              className="relative border-gray-300 bg-white shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
             >
-              <div className="flex flex-col justify-center p-4 gap-y-2">
+              <div className="flex flex-col justify-center gap-y-2 p-4">
                 <h1 className="font-base text-xl">
                   Delete failed, there are debt remaining in your account.
                 </h1>
@@ -247,9 +254,9 @@ export default function NavBar() {
           <div className="flex justify-center items-center sm:items-center p-4 sm:p-0 min-h-full text-center">
             <DialogPanel
               transition
-              className="w-96 p-2 relative transform overflow-hidden rounded-md border border-gray-300 bg-white shadow-xl transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
+              className="relative border-gray-300 bg-white shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
             >
-              <div className="flex flex-col justify-center p-4 gap-y-2">
+              <div className="flex flex-col justify-center gap-y-2 p-4">
                 <h1 className="font-semibold text-xl">Delete success.</h1>
                 <h1 className="font-semibold text-xl">
                   Going back to login page.
