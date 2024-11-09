@@ -1,12 +1,12 @@
 "use client";
-import NavBarB from "../../components/NavBar";
+import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
 
 export default function AboutUs() {
   return (
     <div className="bg-black min-h-screen text-white">
       {/* Navigation Bar */}
-      <NavBarB username={null} />
+      <NavBar />
 
       {/* Image Section */}
       <div

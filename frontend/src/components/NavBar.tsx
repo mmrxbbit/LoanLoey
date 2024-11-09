@@ -16,7 +16,7 @@ const user = [
   },
 ];
 
-export default function NavBarB() {
+export default function NavBar() {
   const PageName = [
     { name: "Information", path: "/userinfo" },
     { name: "Borrow Money", path: "/borrow" },
@@ -40,6 +40,7 @@ export default function NavBarB() {
 
   useEffect(() => {
     setDelete(debt > 0 ? false : true);
+    setIsLoggedIn(username ? true : false);
   }, []);
 
   const [showOverlay1, setShowOverlay1] = useState(false);
