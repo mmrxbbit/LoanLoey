@@ -1,12 +1,12 @@
 "use client";
-import NavBarB from "../../components/NavBarB";
+import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
 
 export default function ContactPage() {
   return (
     <div className="bg-black min-h-screen text-white">
       {/* Navigation Bar */}
-      <NavBarB username={null} />
+      <NavBar />
 
       {/* Main Contact Section */}
       <div className="relative">
@@ -42,8 +42,8 @@ export default function ContactPage() {
           </p>
 
           <h2 className="mt-8 mb-4 font-bold text-2xl">Map</h2>
-          <div className="bg-gray-500 w-auto h-auto">
-            <img src="/img4.png" alt="map"></img>
+          <div className="bg-gray-500 w-auto h-auto ml-2 mr-8">
+            <img src="/img4.png" alt="map" className="w-auto h-auto"></img>
           </div>
         </div>
 

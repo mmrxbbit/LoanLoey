@@ -1,67 +1,65 @@
-import React, { useEffect, useState } from "react";
-import Image from "next/image";
-import dropdownIcon from "../../public/dropdown.svg";
-import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import logo from "../../public/logo_nobg.png";
+import dropdownIcon from "../../public/dropdown_arrow.svg";
 import { useRouter } from "next/navigation";
-import {
-  Dialog,
-  DialogBackdrop,
-  DialogPanel,
-  DialogTitle,
-} from "@headlessui/react";
+import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
+import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 
-const headerInfo = [{ credit: "green", username: "john_doe", debt: 20000 }];
+const user = [
+  {
+    userId: 1,
+    username: "john_doe",
+    credit: "yellow",
+    debt: 20000,
+  },
+];
 
-export default function NavBar() {
+export default function NavBarB() {
   const PageName = [
-    { name: "Home", path: "/home" },
-    { name: "User Information", path: "/userinfo" },
+    { name: "Information", path: "/userinfo" },
     { name: "Borrow Money", path: "/borrow" },
     { name: "User Debt", path: "/userdebt" },
   ];
 
-  const { credit, username, debt } = headerInfo[0];
+  const { userId, username, credit, debt } = user[0];
+  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(username));
   const [creditColor, setcreditColor] = useState("");
-  const [debtMessage, setDebtMessage] = useState("");
   const [canDelete, setDelete] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
     if (credit === "green") {
       setcreditColor("bg-green-400");
     } else if (credit === "yellow") {
-      setcreditColor("bg-yellow-400");
+      setcreditColor("bg-amber-500");
     } else {
       setcreditColor("bg-red-600");
     }
   }, []);
 
   useEffect(() => {
-    setDebtMessage(debt > 0 ? "You have debt!!" : "You have no debt");
     setDelete(debt > 0 ? false : true);
   }, []);
 
   const [showOverlay1, setShowOverlay1] = useState(false);
   const [showOverlay2, setShowOverlay2] = useState(false);
   const [showOverlay3, setShowOverlay3] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const router = useRouter();
 
   // Handle the delete button click
   const openOverlay1 = (event) => {
     event.preventDefault(); // Prevent form submission
+    setDropdownOpen(false); // Close the dropdown
     setShowOverlay1(true);
   };
 
   // close overlay 1 open overlay 2 or 3
   const confirmOverlay1 = (event) => {
     event.preventDefault();
-    if (!canDelete) {
-      setShowOverlay1(false);
-      setShowOverlay2(true);
-    } else {
-      setShowOverlay1(false);
-      openOverlay3(event);
-    }
+    setShowOverlay1(false);
+    canDelete ? openOverlay3(event) : setShowOverlay2(true);
   };
 
   // close overlay 2
@@ -76,7 +74,7 @@ export default function NavBar() {
     setTimeout(() => {
       setShowOverlay3(false); // Close overlay
       router.push("/login"); // Replace with your target page path
-    }, 5000); // 1 seconds = 1000 ms
+    }, 2500); // 1 seconds = 1000 ms
   };
 
   // close overlay 3
@@ -86,57 +84,91 @@ export default function NavBar() {
 
   return (
     <>
-      <header className="p-3 bg-black text-white items-center">
-        <nav className="flex flex-row justify-between">
-          <div className="flex flex-row items-center gap-2">
-            <div className={`${creditColor} w-4 h-4 rounded-full`}></div>
-            <p className="font-semibold">{username}</p>
-          </div>
-
-          <p className="flex items-center font-semibold">{debtMessage}</p>
-
-          <Menu as="div" className="flex justify-center">
-            <MenuButton>
-              <Image
-                src={dropdownIcon}
-                alt="dropdown icon"
-                height={24}
-                width={24}
-              />
-            </MenuButton>
-
-            <MenuItems
-              key="dropdownmenu"
-              transition
-              className="absolute right-0 mt-2 w-48 origin-top-right divide-y divide-gray-300 rounded-md bg-gray-100 shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
+      <nav className="flex justify-between items-center bg-[#FFD28F] py-1 px-4 text-white">
+        <div className="flex flex-row items-center gap-x-2">
+          <Image
+            src={logo}
+            alt="logo"
+            width={35}
+            height={35}
+            className="h-full w-auto py-1"
+          />
+          <span className="text-black font-semibold text-xl">LoanLoey</span>
+        </div>
+        {/* Plain text */}
+        <div className="flex items-center space-x-4">
+          <Link href="/home" className="text-black hover:underline">
+            <span className="cursor-pointer">Home</span> {/* No <a> */}
+          </Link>
+          <Link href="/AboutUs" className="text-black hover:underline">
+            <span className="cursor-pointer">About Us</span> {/* No <a> */}
+          </Link>
+          <Link href="/contact" className="text-black hover:underline">
+            <span className="cursor-pointer">Contact</span> {/* No <a> */}
+          </Link>
+          {isLoggedIn ? (
+            <Menu
+              as="div"
+              className="flex justify-center relative"
+              style={{ zIndex: 20 }}
             >
-              {PageName.map((page) => (
-                <div key={page.name}>
-                  <MenuItem key={page.name}>
-                    <Link
-                      href={page.path}
-                      className="block px-4 py-2 text-sm font-bold text-gray-700 data-[focus]:bg-gray-200 data-[focus]:text-gray-900 data-[focus]:outline-none"
-                    >
-                      {page.name}
-                    </Link>
-                  </MenuItem>
-                </div>
-              ))}
+              <MenuButton
+                className="flex items-center space-x-2"
+                onClick={() => setDropdownOpen(true)}
+              >
+                <span className={`${creditColor} w-2 h-2 rounded-full`}></span>
+                <span className="text-black">{username}</span>
+                <span>
+                  <Image
+                    src={dropdownIcon}
+                    alt="dropdown"
+                    width={24}
+                    height={24}
+                  />
+                </span>
+              </MenuButton>
 
-              <div key="delete">
-                <MenuItem key="delete">
-                  <a
-                    onClick={openOverlay1}
-                    className="block px-4 py-2 text-sm font-bold text-red-500 data-[focus]:bg-gray-200 data-[focus]:text-red-500 data-[focus]:outline-none"
-                  >
-                    Delete Account
-                  </a>
-                </MenuItem>
+              {dropdownOpen && (
+                <MenuItems
+                  key="dropdownmenu"
+                  transition
+                  className="absolute top-full right-0 mt-2 w-48 origin-top-right divide-y divide-gray-300 rounded-md bg-white shadow-md ring-1 ring-black ring-opacity-5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
+                >
+                  {PageName.map((page) => (
+                    <div key={page.name}>
+                      <MenuItem key={page.name}>
+                        <Link
+                          href={page.path}
+                          className="block px-4 py-2 text-base font-base text-black data-[focus]:bg-gray-100 data-[focus]:text-gray-800 data-[focus]:rounded-md"
+                        >
+                          {page.name}
+                        </Link>
+                      </MenuItem>
+                    </div>
+                  ))}
+
+                  <div key="delete">
+                    <MenuItem key="delete">
+                      <a
+                        onClick={openOverlay1}
+                        className="block px-4 py-2 text-base font-base text-red-500 data-[focus]:bg-gray-200 data-[focus]:text-red-500 data-[focus]:rounded-md cursor-pointer"
+                      >
+                        Delete Account
+                      </a>
+                    </MenuItem>
+                  </div>
+                </MenuItems>
+              )}
+            </Menu>
+          ) : (
+            <Link href="/login">
+              <div className="bg-black shadow-2xl px-4 py-1 rounded-lg text-center text-white cursor-pointer">
+                Log In
               </div>
-            </MenuItems>
-          </Menu>
-        </nav>
-      </header>
+            </Link>
+          )}
+        </div>
+      </nav>
 
       <Dialog open={showOverlay1} onClose={() => setShowOverlay1(false)}>
         <DialogBackdrop
@@ -153,7 +185,7 @@ export default function NavBar() {
               <div className="bg-white px-10 pt-2 pb-4">
                 <div className="mt-2 text-center">
                   <div className="flex justify-start mt-4 gap-x-4">
-                    <p className="font-semibold text-xl">
+                    <p className="font-base text-xl">
                       Are you sure you want to{" "}
                       <span className="text-red-500">delete</span> this account?
                     </p>
@@ -195,7 +227,7 @@ export default function NavBar() {
               className="w-96 p-2 relative transform overflow-hidden rounded-md border border-gray-300 bg-white shadow-xl transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
             >
               <div className="flex flex-col justify-center p-4 gap-y-2">
-                <h1 className="font-semibold text-xl">
+                <h1 className="font-base text-xl">
                   Delete failed, there are debt remaining in your account.
                 </h1>
               </div>

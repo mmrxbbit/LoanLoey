@@ -1,5 +1,5 @@
 "use client";
-import NavBarB from "../../components/NavBarB";
+import NavBarB from "../../components/NavBar";
 import Footer from "../../components/Footer";
 
 export default function AboutUs() {

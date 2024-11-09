@@ -223,7 +223,7 @@ function DebtInfo(props: Props) {
 export default function Debt() {
   return (
     <>
-      <NavBar></NavBar>
+      <NavBar />
       <div className="w-auto h-auto px-12 mx-20">
         <div className="w-full flex items-center justify-center">
           <h1 className="text-center my-4 font-semibold text-xl">User Debt</h1>
