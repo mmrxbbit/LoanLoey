@@ -86,7 +86,6 @@ func roundToTwoDecimalPlaces(value float64) float64 {
 	return math.Round(value*100) / 100
 }
 
-
 func getUserLoans(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -180,8 +179,6 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 	}, nil
 }
 
-
-
 // Signup function to create a new account
 func (db *Database) Signup(userAccount UserAccount) error {
 	// Hash the password if it is provided
@@ -217,8 +214,6 @@ func (db *Database) Signup(userAccount UserAccount) error {
 
 	return nil
 }
-
-
 
 // GetUserInfoByID retrieves user information by user ID
 func (db *Database) GetUserInfoByID(userID int) (*UserAccount, error) {
@@ -336,6 +331,7 @@ func (db *Database) DeleteAccount(accountID int) error {
 
 	return nil
 }
+
 // GetUserTotalLoan calculates the total loan amount for a user including interest with pending status
 func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 	query := `SELECT Amount, Duedate FROM loan WHERE UserID = ? AND Status = 'pending'`
@@ -370,8 +366,6 @@ func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 
 	return totalLoan, nil
 }
-
-
 
 // Main function to set up server and routes
 func main() {
@@ -418,7 +412,6 @@ func main() {
 	// 	"bank_name": "Bank of Example",
 	// 	"bank_acc_no": "9876543210"
 	// }
-	
 
 	// HTTP route for admin creation
 	http.HandleFunc("/createAdmin", func(w http.ResponseWriter, r *http.Request) {
@@ -448,7 +441,6 @@ func main() {
 	// 	"first_name": "Admin",
 	// 	"last_name": "User"
 	// }
-	
 
 	// HTTP route to get user information
 	http.HandleFunc("/getUserInfo", func(w http.ResponseWriter, r *http.Request) {
@@ -486,7 +478,7 @@ func main() {
 			return
 		}
 	})
-	//URL: http://localhost:8080/getUserInfo?userID=1      
+	//URL: http://localhost:8080/getUserInfo?userID=1
 	//Method: GET
 
 	// HTTP route for user login
@@ -532,7 +524,6 @@ func main() {
 	// 	"username": "john_doe",
 	// 	"password": "securepassword"
 	// }
-	
 
 	// HTTP route to update user information
 	http.HandleFunc("/updateUserInfo", func(w http.ResponseWriter, r *http.Request) {
@@ -579,7 +570,6 @@ func main() {
 	// 	"bank_name": "New Bank",
 	// 	"bank_acc_no": "0123456789"
 	// }
-	
 
 	// HTTP route to delete an account
 	http.HandleFunc("/deleteAccount", func(w http.ResponseWriter, r *http.Request) {
@@ -611,7 +601,7 @@ func main() {
 	})
 	//URL: http://localhost:8080/deleteAccount?accountID=1
 	//Method: DELETE
-	
+
 	// / HTTP route for applying for a loan
 	http.HandleFunc("/applyForLoan", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -641,38 +631,36 @@ func main() {
 	// 	"due_date_time": "2022-01-01 15:00"
 
 	// HTTP route to get user's total loan amount with pending status
-http.HandleFunc("/getUserTotalLoan", func(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
+	http.HandleFunc("/getUserTotalLoan", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
 
-	userIDStr := r.URL.Query().Get("userID")
-	if userIDStr == "" {
-		http.Error(w, "UserID is required", http.StatusBadRequest)
-		return
-	}
+		userIDStr := r.URL.Query().Get("userID")
+		if userIDStr == "" {
+			http.Error(w, "UserID is required", http.StatusBadRequest)
+			return
+		}
 
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		http.Error(w, "Invalid UserID format", http.StatusBadRequest)
-		return
-	}
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil {
+			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
+			return
+		}
 
-	totalLoan, err := database.GetUserTotalLoan(userID)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
-		return
-	}
+		totalLoan, err := database.GetUserTotalLoan(userID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-	response := map[string]float64{"total_loan": totalLoan}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-})
-
+		response := map[string]float64{"total_loan": totalLoan}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})
 
 	http.HandleFunc("/getUserLoans", getUserLoans(database))
-
 
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {

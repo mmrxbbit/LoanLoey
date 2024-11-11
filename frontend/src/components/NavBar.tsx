@@ -23,10 +23,26 @@ export default function NavBar() {
     { name: "User Debt", path: "/userdebt" },
   ];
 
-  const { userId, username, credit, debt } = user[0];
+  let { userId, username, credit, debt } = user[0];
   const [isLoggedIn, setIsLoggedIn] = useState(Boolean(username));
   const [creditColor, setcreditColor] = useState("");
   const [canDelete, setDelete] = useState(true);
+
+  /*useEffect(() => {
+    async function fetchDebt() {
+      try {
+        const res = await fetch(
+          "http://localhost:8080/getUserTotalLoan?userID=3"
+        );
+        const data = await res.json();
+        debt = data.total_loan;
+      } catch (error) {
+        console.error("Error fetching debt:", error);
+      }
+    }
+
+    fetchDebt();
+  }, []);*/
 
   useEffect(() => {
     if (credit === "green") {

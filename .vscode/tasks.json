@@ -1,0 +1,32 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Run Frontend",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "dev"],
+        "options": {
+          "cwd": "${workspaceFolder}/frontend"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Run Backend",
+        "type": "shell",
+        "command": "go",
+        "args": ["run", "main.go"],
+        "options": {
+          "cwd": "${workspaceFolder}/server"
+        },
+        "problemMatcher": []
+      }
+    ],
+    "compounds": {
+      "label": "Run Frontend and Backend",
+      "dependsOn": ["Run Frontend", "Run Backend"],
+      "runOptions": {
+        "runInParallel": true
+      }
+    }
+  }
