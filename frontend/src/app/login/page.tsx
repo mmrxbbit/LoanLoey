@@ -21,8 +21,15 @@ export default function LoginPage() {
       });
 
       if (response.ok) {
-        const redirectPath = response.url; // Backend redirect path
-        router.push(redirectPath.replace("http://localhost:8080", "")); // Redirect based on role
+        // The backend will redirect to `/homepage` or `/adminpage`
+        const redirectPath = "/home"; // Default path; adjust as needed
+        if (redirectPath === "/home") {
+          router.push("/home"); // Map backend path to frontend path
+        } else if (redirectPath === "/AdminHome") {
+          router.push("/AdminHome"); // Map backend path to frontend path
+        } else {
+          setErrorMessage("Unexpected redirect path from backend.");
+        }
       } else {
         const errorData = await response.text();
         setErrorMessage(errorData || "Login failed.");
