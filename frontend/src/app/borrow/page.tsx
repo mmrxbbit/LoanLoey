@@ -20,50 +20,98 @@ export default function Borrow() {
   const [showOverlay2, setShowOverlay2] = useState(false);
   const [message, setMessage] = useState("");
 
-  const [amount, setAmount] = useState(0);
-  const [returnDate, setReturnDate] = useState("");
+  const [requestData, setRequestData] = useState({
+    userId: 1,
+    amount: 0,
+    returnDate: null,
+  });
 
   const interestRate = 0.02;
   const minAmount = 1000;
 
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  // Get the input element by name
+  var inputElement = document.getElementsByName("returnDate")[0];
+
+  // Ensure it's an HTMLInputElement before setting the 'min' attribute
+  if (inputElement instanceof HTMLInputElement) {
+    var today = new Date().toISOString().slice(0, 16); // Format as 'YYYY-MM-DDTHH:MM'
+    inputElement.min = today; // Set the 'min' attribute
+  }
+
+  // Format date
+  const formatter = (date) => {
+    const d = new Date(date);
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0"); // Months are zero-indexed, so add 1
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  };
 
   // Handle input change
   const handleAmountChange = (e) => {
     const fvalue = parseInt(e.target.value);
-    setAmount(fvalue);
+    setRequestData((prevState) => ({
+      ...prevState, // Keep the previous state values
+      amount: fvalue, // Update the username
+    }));
     setMessage("");
   };
-  const handleDateChange = (date: ZonedDateTime) => {
-    setReturnDate(formatter.format(date.toDate()));
+  const handleDateChange = (e) => {
+    setRequestData((prevState) => ({
+      ...prevState, // Keep the previous state values
+      returnDate: e.target.value, // Update the username
+    }));
   };
 
   // Calculate interest
   const calculateInterest = () => {
-    return amount * interestRate;
+    return requestData.amount * interestRate;
   };
 
   // Handle the submit button click
   const openOverlay1 = (event) => {
     event.preventDefault(); // Prevent form submission
-    if (amount < minAmount) {
+    if (requestData.amount < minAmount) {
       setMessage("You must borrow at least 1000");
       return; // Prevent oveylay from opening
     }
     setShowOverlay1(true);
   };
 
-  // close overlay 1 open overlay 2
-  const confirmOverlay1 = (event) => {
+  // Confirm button click (close overlay 1 open overlay 2)
+  const confirmOverlay1 = async (event) => {
     event.preventDefault();
-    setShowOverlay1(false);
-    setShowOverlay2(true);
+    const formattedReturnDate = formatter(requestData.returnDate);
+    try {
+      // Make an API request to apply for the loan
+      const response = await fetch("http://localhost:8080/applyForLoan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: requestData.userId,
+          initial_amount: requestData.amount,
+          due_date_time: formattedReturnDate,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to apply for loan. Status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Loan Application Response:", data); // For debugging
+
+      setShowOverlay1(false);
+      setShowOverlay2(true);
+    } catch (error) {
+      console.error("Error applying for loan:", error);
+    }
   };
 
   // close overlay 2
@@ -80,7 +128,7 @@ export default function Borrow() {
           <h1 className="mb-8 font-semibold text-2xl">
             How much and How long?
           </h1>
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={(event) => openOverlay1(event)}>
             <div className="grid grid-cols-4 items-center gap-x-4">
               <label className="col-span-1 w-1/4 font-semibold text-xl whitespace-nowrap">
                 Amount
@@ -88,11 +136,11 @@ export default function Borrow() {
               <input
                 type="number"
                 name="amount"
-                required
                 min="1000"
-                value={message ? "" : amount}
-                onChange={handleAmountChange}
+                value={message ? "" : requestData.amount}
                 placeholder={message || "Amount you want borrow"}
+                required
+                onChange={handleAmountChange}
                 className={`col-span-3 border border-2 border-gray-300 px-4 py-2 rounded-md w-full text-black hover:border-gray-400 [&::-webkit-inner-spin-button]:appearance-none ${
                   message ? "border-red-500" : "border-gray-300"
                 }`}
@@ -102,13 +150,23 @@ export default function Borrow() {
               <label className="col-span-1 w-1/4 font-semibold text-xl whitespace-nowrap">
                 Return Date
               </label>
-              <DateTimePicker name="date" onSetDate={handleDateChange} />
+              <div className="col-span-3" inert={false}>
+                {/*<DateTimePicker name="date" onSetDate={handleDateChange} />*/}
+                <input
+                  type="datetime-local"
+                  name="returnDate"
+                  min="{{today()}}"
+                  value={requestData.returnDate || ""}
+                  onChange={handleDateChange}
+                  required
+                  className="col-span-3 border border-2 border-gray-300 px-4 py-2 rounded-md w-full text-black hover:border-gray-400"
+                />
+              </div>
             </div>
             <div className="flex justify-center">
               <button
                 type="submit"
                 name="subloan"
-                onClick={(event) => openOverlay1(event)}
                 className="bg-gray-800 hover:bg-gray-900 py-2 rounded-md w-32 text-white"
               >
                 Submit
@@ -148,12 +206,16 @@ export default function Borrow() {
                     </div>
                     <div className="flex flex-col gap-y-2 text-left">
                       <p className="text-base font-base">
-                        {amount + calculateInterest()}
+                        {requestData.amount + calculateInterest()}
                       </p>
                       <p className="text-base font-base">
-                        {returnDate ? returnDate : "No date selected"}
+                        {requestData.returnDate
+                          ? requestData.returnDate
+                          : "No date selected"}
                       </p>
-                      <p className="text-base font-base">{amount}</p>
+                      <p className="text-base font-base">
+                        {requestData.amount}
+                      </p>
                       <p className="text-base font-base">2%</p>
                       <p className="text-base font-base">
                         {calculateInterest()}

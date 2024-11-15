@@ -11,42 +11,22 @@ import {
   DialogTitle,
 } from "@headlessui/react";
 
-const debtData = [
-  {
-    loanId: 1,
-    total: new Float64Array([10500]),
-    dueDate: "2022-01-01 15:00",
-    initAmount: new Float64Array([10000]),
-    interestRate: new Float64Array([0.05]),
-    interest: new Float64Array([500]),
-    status: "notComplete",
-  },
-  {
-    loanId: 2,
-    total: new Float64Array([21000]),
-    dueDate: "2022-01-01 15:00",
-    initAmount: new Float64Array([20000]),
-    interestRate: new Float64Array([0.05]),
-    interest: new Float64Array([1000]),
-    status: "complete",
-  },
-  {
-    loanId: 3,
-    total: new Float64Array([31500]),
-    dueDate: "2022-01-01 15:00",
-    initAmount: new Float64Array([30000]),
-    interestRate: new Float64Array([0.05]),
-    interest: new Float64Array([1500]),
-    status: "overdue",
-  },
-];
-
 interface Props {
-  total: Float64Array;
+  total: number;
   dueDate: string;
-  initAmount: Float64Array;
-  interestRate: Float64Array;
-  interest: Float64Array;
+  initAmount: number;
+  interestRate: number;
+  interest: number;
+  status: string;
+  updateStatus: () => void;
+}
+
+interface LoanResponse {
+  total: number;
+  due_date_time: string;
+  initial_amount: number;
+  interest_rate: number;
+  interest: number;
   status: string;
 }
 
@@ -88,8 +68,12 @@ function DebtInfo(props: Props) {
   // close overlay 1 open overlay 2
   const confirmOverlay1 = (event) => {
     event.preventDefault();
+
     setShowOverlay1(false);
     setShowOverlay2(true);
+
+    // Update loan status to complete
+    props.updateStatus();
   };
 
   // close overlay 2
@@ -102,19 +86,19 @@ function DebtInfo(props: Props) {
       <div className="flex flex-row border-1 px-2 py-4 border-t-white border-r-white border-b-gray-300 border-l-white w-full">
         {/* debt info */}
         <div className="grid grid-cols-2 text-nowrap">
-          <div className="flex flex-col gap-y-2 w-48 text-left">
+          <div className="col-span-1 flex flex-col gap-y-2 text-left">
             <p className="font-semibold text-base">Total</p>
             <p className="font-semibold text-base">Due Date</p>
             <p className="font-semibold text-base">Initial Amount</p>
             <p className="font-semibold text-base">Interest Rate</p>
             <p className="font-semibold text-base">Interest</p>
           </div>
-          <div className="flex flex-col gap-y-2 w-48 text-left">
-            <p className="font-base text-base">{props.total[0]}</p>
+          <div className="col-span-1 flex flex-col gap-y-2 w-48 text-left">
+            <p className="font-base text-base">{props.total}</p>
             <p className="font-base text-base">{props.dueDate}</p>
-            <p className="font-base text-base">{props.initAmount[0]}</p>
-            <p className="font-base text-base">{props.interestRate[0]}</p>
-            <p className="font-base text-base">{props.interest[0]}</p>
+            <p className="font-base text-base">{props.initAmount}</p>
+            <p className="font-base text-base">{props.interestRate}</p>
+            <p className="font-base text-base">{props.interest}</p>
           </div>
         </div>
         <div className="w-3/6"></div>
@@ -221,6 +205,52 @@ function DebtInfo(props: Props) {
 }
 
 export default function Debt() {
+  const userId = 1;
+  const [loanInfo, setLoanInfo] = useState<LoanResponse[] | null>(null);
+
+  const updateLoanStatus = (index: number) => {
+    setLoanInfo((prevLoanInfo) => {
+      if (!prevLoanInfo) return null;
+      const updatedLoans = [...prevLoanInfo];
+      updatedLoans[index].status = "complete"; // Update status to 'complete'
+      return updatedLoans;
+    });
+  };
+
+  useEffect(() => {
+    async function fetchLoanData() {
+      if (userId == null) return; // Ensure userId is valid
+      try {
+        // Fetch loan info
+        const response = await fetch(
+          `http://localhost:8080/getUserLoans?userID=${userId}`
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const loanData: LoanResponse[] = await response.json();
+        console.log(loanData);
+
+        // Process the data and calculate status
+        const updatedLoanInfo = loanData.map((loan) => {
+          const status =
+            new Date(loan.due_date_time) > new Date() ? "pending" : "overdue";
+          return {
+            ...loan,
+            status,
+          };
+        });
+
+        setLoanInfo(updatedLoanInfo); // Update the state
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    }
+
+    fetchLoanData();
+  }, [userId]);
+
   return (
     <>
       <NavBar />
@@ -228,17 +258,20 @@ export default function Debt() {
         <div className="flex justify-center items-center w-full">
           <h1 className="my-4 font-semibold text-center text-xl">User Debt</h1>
         </div>
-        {debtData.map((loan) => (
-          <DebtInfo
-            key={loan.loanId}
-            total={loan.total}
-            dueDate={loan.dueDate}
-            initAmount={loan.initAmount}
-            interestRate={loan.interestRate}
-            interest={loan.interest}
-            status={loan.status}
-          ></DebtInfo>
-        ))}
+        {loanInfo
+          ? loanInfo.map((loan, index) => (
+              <DebtInfo
+                key={index} // Use index as the key or use a unique loanId if available
+                total={loan.total}
+                dueDate={loan.due_date_time}
+                initAmount={loan.initial_amount}
+                interestRate={loan.interest_rate}
+                interest={loan.interest}
+                status={loan.status}
+                updateStatus={() => updateLoanStatus(index)}
+              />
+            ))
+          : null}
       </div>
     </>
   );

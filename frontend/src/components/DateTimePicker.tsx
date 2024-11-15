@@ -1,7 +1,6 @@
 import { DatePicker } from "@nextui-org/react";
 import {
   now,
-  today,
   getLocalTimeZone,
   DateFormatter,
   ZonedDateTime,
@@ -42,19 +41,17 @@ export default function DateTimePicker({
 
   return (
     <>
-      <div className="col-span-3 gap-4 w-full max-w-xl">
-        <div>
-          <DatePicker
-            label="Due Date"
-            variant="bordered"
-            isRequired
-            hideTimeZone
-            showMonthAndYearPickers
-            minValue={today(getLocalTimeZone())}
-            defaultValue={defaultDate}
-            onChange={handleDatetimeChange}
-          />
-        </div>
+      <div className="gap-4 w-full max-w-xl">
+        <DatePicker
+          label="Due Date"
+          variant="bordered"
+          isRequired
+          hideTimeZone
+          showMonthAndYearPickers
+          minValue={defaultDate}
+          defaultValue={defaultDate}
+          onChange={handleDatetimeChange}
+        />
 
         <input
           type="hidden"
