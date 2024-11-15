@@ -10,9 +10,6 @@ import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 const user = [
   {
     userId: 1,
-    username: null,
-    credit: null,
-    debt: null,
   },
 ];
 
