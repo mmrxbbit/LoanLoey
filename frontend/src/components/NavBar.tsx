@@ -9,7 +9,7 @@ import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 
 const user = [
   {
-    userId: null,
+    userId: 1,
     username: null,
     credit: null,
     debt: null,
@@ -23,26 +23,48 @@ export default function NavBar() {
     { name: "User Debt", path: "/userdebt" },
   ];
 
-  let { userId, username, credit, debt } = user[0];
-  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(username));
+  let { userId } = user[0];
   const [creditColor, setcreditColor] = useState("");
   const [canDelete, setDelete] = useState(true);
+  const [username, setUsername] = useState(null);
+  const [credit, setCredit] = useState(null);
+  const [debt, setDebt] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(username));
 
-  /*useEffect(() => {
-    async function fetchDebt() {
+  useEffect(() => {
+    async function fetchUserData() {
+      if (userId == null) return; // Ensure userId is valid
       try {
-        const res = await fetch(
-          "http://localhost:8080/getUserTotalLoan?userID=3"
+        // Fetch user info
+        const userInfoResponse = await fetch(
+          `http://localhost:8080/getUserInfo?userID=${userId}`
         );
-        const data = await res.json();
-        debt = data.total_loan;
+        if (!userInfoResponse.ok) {
+          throw new Error(`HTTP error! status: ${userInfoResponse.status}`);
+        }
+        const userInfo = await userInfoResponse.json();
+        setUsername(userInfo.first_name);
+
+        // Fetch user total debt
+        const userDebtResponse = await fetch(
+          `http://localhost:8080/getUserTotalLoan?userID=${userId}`
+        );
+        if (!userDebtResponse.ok) {
+          throw new Error(`HTTP error! status: ${userDebtResponse.status}`);
+        }
+        const userDebt = await userDebtResponse.json();
+        setDebt(userDebt.total_loan);
+
+        // Update derived states
+        setIsLoggedIn(!!userInfo.first_name);
+        setDelete(userDebt.total_loan > 0 ? false : true);
       } catch (error) {
-        console.error("Error fetching debt:", error);
+        console.error("Error fetching user data:", error);
       }
     }
 
-    fetchDebt();
-  }, []);*/
+    fetchUserData();
+  }, [userId]);
 
   useEffect(() => {
     if (credit === "green") {
@@ -52,11 +74,6 @@ export default function NavBar() {
     } else {
       setcreditColor("bg-red-600");
     }
-  }, []);
-
-  useEffect(() => {
-    setDelete(debt > 0 ? false : true);
-    setIsLoggedIn(username ? true : false);
   }, []);
 
   const [showOverlay1, setShowOverlay1] = useState(false);
