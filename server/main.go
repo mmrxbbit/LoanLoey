@@ -164,7 +164,7 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 	}
 	doProcess := time.Now().In(loc)
 
-	query := `INSERT INTO loan (UserID, Amount, Duedate, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
+	query := `INSERT INTO loan (UserID, Amount, DueDate, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
 	_, err = db.Exec(query, request.UserID, request.InitialAmount, dueDateTime.Format("2006-01-02 15:04:05"), doProcess.Format("2006-01-02 15:04:05"), "pending")
 	if err != nil {
 		return LoanResponse{}, fmt.Errorf("inserting loan: %w", err)
@@ -372,7 +372,7 @@ func enableCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Allow all origins, methods, and headers
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "OPTIONS, GET, POST, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		// For preflight requests (OPTIONS)
@@ -678,7 +678,7 @@ func main() {
 		json.NewEncoder(w).Encode(response)
 	})))
 
-	http.Handle("/getUserLoans", getUserLoans(database))
+	http.Handle("/getUserLoans", enableCORS(http.HandlerFunc(getUserLoans(database))))
 
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {

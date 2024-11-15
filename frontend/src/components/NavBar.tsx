@@ -7,12 +7,6 @@ import { useRouter } from "next/navigation";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 
-const user = [
-  {
-    userId: 1,
-  },
-];
-
 export default function NavBar() {
   const PageName = [
     { name: "Information", path: "/userinfo" },
@@ -20,37 +14,46 @@ export default function NavBar() {
     { name: "User Debt", path: "/userdebt" },
   ];
 
-  let { userId } = user[0];
+  const [userData, setUserData] = useState({
+    userId: 1,
+    username: null,
+    debt: null,
+    credit: null,
+  });
+
   const [creditColor, setcreditColor] = useState("");
   const [canDelete, setDelete] = useState(true);
-  const [username, setUsername] = useState(null);
-  const [credit, setCredit] = useState(null);
-  const [debt, setDebt] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(username));
+  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(userData.username));
 
   useEffect(() => {
     async function fetchUserData() {
-      if (userId == null) return; // Ensure userId is valid
+      if (userData.userId == null) return; // Ensure userId is valid
       try {
         // Fetch user info
         const userInfoResponse = await fetch(
-          `http://localhost:8080/getUserInfo?userID=${userId}`
+          `http://localhost:8080/getUserInfo?userID=${userData.userId}`
         );
         if (!userInfoResponse.ok) {
           throw new Error(`HTTP error! status: ${userInfoResponse.status}`);
         }
         const userInfo = await userInfoResponse.json();
-        setUsername(userInfo.first_name);
+        setUserData((prevState) => ({
+          ...prevState, // Keep the previous state values
+          username: userInfo.first_name, // Update the username
+        }));
 
         // Fetch user total debt
         const userDebtResponse = await fetch(
-          `http://localhost:8080/getUserTotalLoan?userID=${userId}`
+          `http://localhost:8080/getUserTotalLoan?userID=${userData.userId}`
         );
         if (!userDebtResponse.ok) {
           throw new Error(`HTTP error! status: ${userDebtResponse.status}`);
         }
         const userDebt = await userDebtResponse.json();
-        setDebt(userDebt.total_loan);
+        setUserData((prevState) => ({
+          ...prevState, // Keep the previous state values
+          debt: userDebt.total_loan, // Update the username
+        }));
 
         // Update derived states
         setIsLoggedIn(!!userInfo.first_name);
@@ -61,12 +64,12 @@ export default function NavBar() {
     }
 
     fetchUserData();
-  }, [userId]);
+  }, [userData.userId]);
 
   useEffect(() => {
-    if (credit === "green") {
+    if (userData.credit === "green") {
       setcreditColor("bg-green-400");
-    } else if (credit === "yellow") {
+    } else if (userData.credit === "yellow") {
       setcreditColor("bg-amber-500");
     } else {
       setcreditColor("bg-red-600");
@@ -152,7 +155,7 @@ export default function NavBar() {
                 }}
               >
                 <span className={`${creditColor} w-2 h-2 rounded-full`}></span>
-                <span className="text-black">{username}</span>
+                <span className="text-black">{userData.username}</span>
                 <span
                   className="transition-transform duration-300"
                   style={{ transform: `rotate(${rotation}deg)` }}
