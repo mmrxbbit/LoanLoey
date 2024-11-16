@@ -48,17 +48,22 @@ This API allows users to manage their loan applications, account information, an
     }
     ```
 
-### 3. User Login
-- **URL**: `http://localhost:8080/login`
-- **Method**: `POST`
-- **Request Body**:
-    ```json
-    {
-        "username": "john_doe",
-        "password": "securepassword"
-    }
-    ```
-- **Response**: Redirects to either `/homepage` or `/adminpage`.
+    ### 3. User Login
+    - **URL**: `http://localhost:8080/login`
+    - **Method**: `POST`
+    - **Request Body**:
+        ```json
+        {
+            "username": "test",
+            "password": "securePassword123"
+        }
+        ```
+    - **Response**:
+        ```json
+        {
+            "role": "user"
+        }
+        ```
 
 ### 4. Get User Info
 - **URL**: `http://localhost:8080/getUserInfo?userID=3`
@@ -129,7 +134,9 @@ This API allows users to manage their loan applications, account information, an
         "due_date_time": "2022-01-01 15:00",
         "initial_amount": 10000,
         "interest_rate": 0.05,
-        "interest": 500
+        "interest": 500,
+        "status": "pending"
+
     }
     ```
 
@@ -138,17 +145,32 @@ This API allows users to manage their loan applications, account information, an
 - **Method**: `GET`
 - **Response**:
     ```json
-    [
-        {
-            "total": 10500,
-            "due_date_time": "2022-01-01 15:00",
-            "initial_amount": 10000,
-            "interest_rate": 0.05,
-            "interest": 500
-        },
-        ...
-    ]
-    ```
+
+    {
+        "total": 4160,
+        "due_date_time": "2030-11-18 12:30:00",
+        "initial_amount": 4000,
+        "interest_rate": 0.04,
+        "interest": 160,
+        "status": "pending"
+    },
+    {
+        "total": 42400,
+        "due_date_time": "2030-11-18 12:30:00",
+        "initial_amount": 40000,
+        "interest_rate": 0.06,
+        "interest": 2400,
+        "status": "pending"
+    },
+    {
+        "total": 42400,
+        "due_date_time": "2030-11-18 12:30:00",
+        "initial_amount": 40000,
+        "interest_rate": 0.06,
+        "interest": 2400,
+        "status": "pending"
+    },
+    '''
 ### 8.Get User Total Loan
 
 - **URL**: `http://localhost:8080/getUserTotalLoan?userID=3`
@@ -163,3 +185,148 @@ This API allows users to manage their loan applications, account information, an
     }
     ```
     ```
+### 9. Get Total Loan
+
+- **URL**: `http://localhost:8080/getTotalLoan`
+- **Method**: `GET`
+- **Response**:
+    ```json
+    {
+       "total_loan": 500000
+    }
+    ```
+
+
+    ### 10. Create Admin
+    - **URL**: `http://localhost:8080/createAdmin`
+    - **Method**: `POST`
+    - **Request Body**:
+        ```json
+        {
+            "username": "admin_user",
+            "password": "adminpassword",
+            "first_name": "Admin",
+            "last_name": "User"
+        }
+        ```
+    - **Response**:
+        ```json
+        {
+            "message": "Admin created successfully!"
+        }
+        ```
+
+    ### 11. Check Loan Details
+   
+    - **URL**: `http://localhost:8080/checkLoanDetails`
+    - **Method**: `GET`
+    - **Request Body**:
+        ```json
+        {
+            "user_id": 10,
+            "initial_amount": 4000,
+            "due_date_time": "2030-11-18 12:30"
+        }
+        ```
+    - **Response**:
+        ```json
+        {
+            "total": 4160,
+            "due_date_time": "2030-11-18 12:30",
+            "initial_amount": 4000,
+            "interest_rate": 0.04,
+            "interest": 160
+            "status": "pending"
+          
+        }
+        ```
+    ### 12. Check Payment Details
+
+    - **URL**: `http://localhost:8080/checkPaymentDetails?loanID=52`
+    - **Method**: `GET`
+    - **Response**:
+        ```json
+        {
+            "totalAmount": 4160
+        }
+        ```
+    ### 13. Make Payment
+
+    - **URL**: `http://localhost:8080/makePayment?loanID=76`
+    - **Method**: `POST`
+    - **Response**:
+        ```json
+        {
+            "message": "Payment processed successfully",
+            "status": "intime"
+        }
+        ```
+
+
+### 14. Get User Credit Level
+
+- **URL**: `http://localhost:8080/getUserCreditLevel?userID=10`
+- **Method**: `GET`
+- **Response**:
+    ```json
+    {
+        "credit_level": "yellow"
+    }
+    ```
+
+    ### 15. Get User Loan History
+
+    - **URL**: `http://localhost:8080/getUserTotalLoanHistory?userID=10`
+    - **Method**: `GET`
+    - **Response**:
+        ```json
+        {
+            "total_loan": 1229760
+        }
+        ```
+
+    ### 16. Get All User Info for Admin
+
+    - **URL**: `http://localhost:8080/getAllUserInfoForAdmin`
+    - **Method**: `GET`
+    - **Response**:
+        ```json
+        [
+            {
+                "username": "john_doe2",
+                "total_loan": 1355760,
+                "total_loan_remain": 892960,
+                "risk_level": "red"
+            },
+            {
+                "username": "john_doe2",
+                "total_loan": 0,
+                "total_loan_remain": 0,
+                "risk_level": "green"
+            },
+            {
+                "username": "test",
+                "total_loan": 84000,
+                "total_loan_remain": 84000,
+                "risk_level": "green"
+            },
+            {
+                "username": "test",
+                "total_loan": 0,
+                "total_loan_remain": 0,
+                "risk_level": "green"
+            }
+        ]
+### 17. Check Payment Details
+
+- **URL**: `http://localhost:8080/checkPaymentDetails?loanID=72`
+- **Method**: `GET`
+- **Response**:
+    ```json
+    {
+        "doPayment": "2024-11-04 01:32:18",
+        "loanID": 72,
+        "status": "intime"
+    }
+    ```
+```
