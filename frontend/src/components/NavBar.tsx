@@ -103,9 +103,35 @@ export default function NavBar() {
   };
 
   // Open overlay 3
-  const openOverlay3 = (event) => {
+  const openOverlay3 = async (event) => {
     event.preventDefault(); // Prevent form submission
     setShowOverlay3(true);
+
+    try {
+      const response = await fetch(
+        `http://localhost:8080/deleteAccount?accountID=${userData.userId}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            accountID: userData.userId, // Pass the logged-in user's account ID
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete account: ${response.statusText}`);
+      }
+
+      console.log("Account deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      alert("Failed to delete account. Please try again.");
+      return;
+    }
+
     setTimeout(() => {
       setShowOverlay3(false); // Close overlay
       router.push("/login"); // Replace with your target page path
