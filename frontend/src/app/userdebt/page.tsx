@@ -234,12 +234,15 @@ export default function Debt() {
 
         // Process the data and calculate status
         const updatedLoanInfo = loanData.map((loan) => {
-          const status =
-            new Date(loan.due_date_time) > new Date() ? "pending" : "overdue";
-          return {
-            ...loan,
-            status,
-          };
+          if (loan.status === "pending") {
+            const status =
+              new Date(loan.due_date_time) > new Date() ? "pending" : "overdue";
+            return {
+              ...loan,
+              status,
+            };
+          }
+          return loan; // Keep loans with complete status unchanged
         });
 
         setLoanInfo(updatedLoanInfo); // Update the state
