@@ -7,9 +7,9 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
-	"sort"
 
 	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
@@ -144,69 +144,78 @@ func (db *Database) Signup(userAccount UserAccount) error {
 	return nil
 }
 
-
-// DeleteAccount function to delete an account and all related information
+// DeleteAccount deletes an account and all related information.
+// It handles both user and admin accounts.
 func (db *Database) DeleteAccount(accountID int) error {
-	var userID int64
+	var userID sql.NullInt64 // To handle nullable UserID.
+	var adminID sql.NullInt64 // To handle nullable AdminID.
 
-	// Get the UserID associated with the AccountID
-	err := db.QueryRow(`SELECT UserID FROM user WHERE AccountID = ?`, accountID).Scan(&userID)
+	// Check for UserID and AdminID associated with the AccountID.
+	err := db.QueryRow(`
+		SELECT 
+			(SELECT UserID FROM user WHERE AccountID = ?) AS UserID,
+			(SELECT AdminID FROM loansharkadmin WHERE AccountID = ?) AS AdminID
+	`, accountID, accountID).Scan(&userID, &adminID)
 	if err != nil {
-		return fmt.Errorf("fetching UserID for AccountID %d: %w", accountID, err)
+		return fmt.Errorf("fetching UserID or AdminID for AccountID %d: %w", accountID, err)
 	}
 
-	// Check if the user has any pending loans
-	var pendingLoans int
-	query := `SELECT COUNT(*) FROM loan WHERE UserID = ? AND Status = 'pending'`
-	err = db.QueryRow(query, userID).Scan(&pendingLoans)
-	if err != nil {
-		return fmt.Errorf("checking pending loans: %w", err)
+	if userID.Valid { // Account belongs to a user.
+		// Check for pending loans.
+		var pendingLoans int
+		query := `SELECT COUNT(*) FROM loan WHERE UserID = ? AND Status = 'pending'`
+		err = db.QueryRow(query, userID.Int64).Scan(&pendingLoans)
+		if err != nil {
+			return fmt.Errorf("checking pending loans: %w", err)
+		}
+
+		if pendingLoans > 0 {
+			return fmt.Errorf("cannot delete account with pending loans")
+		}
+
+		// Delete payments related to the user's loans.
+		_, err = db.Exec(`DELETE FROM payment WHERE LoanID IN (SELECT LoanID FROM loan WHERE UserID = ?)`, userID.Int64)
+		if err != nil {
+			return fmt.Errorf("deleting payments: %w", err)
+		}
+
+		// Delete loans related to the user.
+		_, err = db.Exec(`DELETE FROM loan WHERE UserID = ?`, userID.Int64)
+		if err != nil {
+			return fmt.Errorf("deleting loans: %w", err)
+		}
+
+		// Delete the user from the user table.
+		_, err = db.Exec(`DELETE FROM user WHERE AccountID = ?`, accountID)
+		if err != nil {
+			return fmt.Errorf("deleting user: %w", err)
+		}
 	}
 
-	if pendingLoans > 0 {
-		return fmt.Errorf("cannot delete account with pending loans")
+	if adminID.Valid { // Account belongs to an admin.
+		// Delete admin-specific data.
+		_, err = db.Exec(`DELETE FROM loansharkadmin WHERE AccountID = ?`, accountID)
+		if err != nil {
+			return fmt.Errorf("deleting from admin table: %w", err)
+		}
 	}
 
-	// Delete payments related to the user's loans
-	_, err = db.Exec(`DELETE FROM payment WHERE LoanID IN (SELECT LoanID FROM loan WHERE UserID = ?)`, userID)
-	if err != nil {
-		return fmt.Errorf("deleting payments: %w", err)
-	}
-
-	// Delete loans related to the user
-	_, err = db.Exec(`DELETE FROM loan WHERE UserID = ?`, userID)
-	if err != nil {
-		return fmt.Errorf("deleting loans: %w", err)
-	}
-
-	// Delete from admin table if exists
-	_, err = db.Exec(`DELETE FROM admin WHERE AccountID = ?`, accountID)
-	if err != nil {
-		return fmt.Errorf("deleting from admin: %w", err)
-	}
-
-	// Delete from user table
-	_, err = db.Exec(`DELETE FROM user WHERE AccountID = ?`, accountID)
-	if err != nil {
-		return fmt.Errorf("deleting from user: %w", err)
-	}
-
-	// Delete from account table
+	// Delete the account itself from the account table.
 	_, err = db.Exec(`DELETE FROM account WHERE AccountID = ?`, accountID)
 	if err != nil {
-		return fmt.Errorf("deleting from account: %w", err)
+		return fmt.Errorf("deleting account: %w", err)
 	}
 
 	return nil
 }
 
 
-
 // Login function for user login
-func (db *Database) Login(username, password string) (map[string]string, error) {
+func (db *Database) Login(username, password string) (map[string]interface{}, error) {
 	var storedHash string
 	var accountID int64
-	var isAdmin bool
+	var isAdmin int // Use an int to store the admin count
+	var userID sql.NullInt64 // To handle nullable UserID
 
 	// Query to get stored password hash and account ID
 	query := `SELECT PasswordHash, AccountID FROM account WHERE Username = ?`
@@ -221,18 +230,41 @@ func (db *Database) Login(username, password string) (map[string]string, error) 
 	}
 
 	// Check if the user is an admin
-	adminQuery := `SELECT COUNT(*) FROM admin WHERE AccountID = ?`
+	adminQuery := `SELECT COUNT(*) FROM loansharkadmin WHERE AccountID = ?`
 	err = db.QueryRow(adminQuery, accountID).Scan(&isAdmin)
 	if err != nil {
 		return nil, fmt.Errorf("checking admin status: %w", err)
 	}
 
+	// Determine the role and fetch UserID if not an admin
 	role := "user"
-	if isAdmin {
+	var userData map[string]interface{}
+
+	if isAdmin > 0 {
 		role = "admin"
+		userData = map[string]interface{}{
+			"role": role,
+		}
+	} else {
+		// Fetch the UserID associated with the account
+		userQuery := `SELECT UserID FROM user WHERE AccountID = ?`
+		err = db.QueryRow(userQuery, accountID).Scan(&userID)
+		if err != nil && err != sql.ErrNoRows {
+			return nil, fmt.Errorf("fetching UserID: %w", err)
+		}
+
+		// Prepare the response
+		userData = map[string]interface{}{
+			"role":   role,
+			"UserID": nil,
+		}
+
+		if userID.Valid {
+			userData["UserID"] = userID.Int64
+		}
 	}
 
-	return map[string]string{"role": role}, nil
+	return userData, nil
 }
 
 
@@ -280,7 +312,7 @@ func (db *Database) GetUserCreditLevel(userID int) (string, error) {
 
 	// Determine the credit level based on the credit score
 	var creditLevel string
-	fmt.Println("creditLevel: ",creditScore,creditLevel)
+	fmt.Println("creditLevel: ", creditScore, creditLevel)
 	switch {
 	case creditScore >= 5:
 		creditLevel = "red"
@@ -288,12 +320,11 @@ func (db *Database) GetUserCreditLevel(userID int) (string, error) {
 		creditLevel = "yellow"
 	default:
 		creditLevel = "green"
-	
-		
-	fmt.Println("creditLevel: ",creditScore,creditLevel)
+
+		fmt.Println("creditLevel: ", creditScore, creditLevel)
+		return creditLevel, nil
+	}
 	return creditLevel, nil
-}
-return creditLevel, nil
 }
 
 func (db *Database) getAllUserInfoForAdmin() ([]UserInfoForAdmin, error) {
@@ -313,7 +344,7 @@ func (db *Database) getAllUserInfoForAdmin() ([]UserInfoForAdmin, error) {
 		if err := rows.Scan(&userID, &username); err != nil {
 			return nil, fmt.Errorf("scanning user row: %w", err)
 		}
-		
+
 		totalLoan, err := db.GetUserTotalLoanHistory(userID)
 		if err != nil {
 			return nil, fmt.Errorf("getting user total loan history: %w", err)
@@ -352,13 +383,8 @@ func (db *Database) getAllUserInfoForAdmin() ([]UserInfoForAdmin, error) {
 	return users, nil
 }
 
-
-
-
-
 //ADMIN
 
-// CreateAdmin function to create a new admin account
 func (db *Database) CreateAdmin(admin Admin) error {
 	// Check if the username already exists
 	var exists bool
@@ -390,16 +416,15 @@ func (db *Database) CreateAdmin(admin Admin) error {
 		return fmt.Errorf("getting last insert ID: %w", err)
 	}
 
-	// Insert admin details into the admin table
-	adminQuery := `INSERT INTO admin (AccountID, FirstName, LastName) VALUES (?, ?, ?)`
+	// Insert admin details into the loansharkadmin table
+	adminQuery := `INSERT INTO loansharkadmin (AccountID, FirstName, LastName) VALUES (?, ?, ?)`
 	_, err = db.Exec(adminQuery, accountID, admin.FirstName, admin.LastName)
 	if err != nil {
-		return fmt.Errorf("inserting admin: %w", err)
+		return fmt.Errorf("inserting loansharkadmin: %w", err)
 	}
 
 	return nil
 }
-
 
 //LOAN
 
@@ -479,7 +504,6 @@ func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 	return totalLoan, nil
 }
 
-
 // GetUserTotalLoanHistory calculates the total loan amount for a user, including interest, across all loan statuses.
 func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 	query := `SELECT Amount, Duedate FROM loan WHERE UserID = ?`
@@ -521,65 +545,62 @@ func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 	return totalLoan, nil
 }
 
-
-
 func getUserLoans(db *Database) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        if r.Method != http.MethodGet {
-            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-            return
-        }
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
 
-        userIDStr := r.URL.Query().Get("userID")
-        userID, err := strconv.Atoi(userIDStr)
-        if err != nil || userID <= 0 {
-            http.Error(w, "Invalid user ID", http.StatusBadRequest)
-            return
-        }
+		userIDStr := r.URL.Query().Get("userID")
+		userID, err := strconv.Atoi(userIDStr)
+		if err != nil || userID <= 0 {
+			http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			return
+		}
 
-        // Updated query to include Status column
-        query := `SELECT Amount, Duedate, Status FROM loan WHERE UserID = ?`
-        rows, err := db.Query(query, userID)
-        if err != nil {
-            http.Error(w, fmt.Sprintf("querying loans: %v", err), http.StatusInternalServerError)
-            return
-        }
-        defer rows.Close()
+		// Updated query to include Status column
+		query := `SELECT Amount, Duedate, Status FROM loan WHERE UserID = ?`
+		rows, err := db.Query(query, userID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("querying loans: %v", err), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
 
-        var loans []LoanResponse
+		var loans []LoanResponse
 
-        for rows.Next() {
-            var amount float64
-            var dueDateStr, status string
+		for rows.Next() {
+			var amount float64
+			var dueDateStr, status string
 
-            if err := rows.Scan(&amount, &dueDateStr, &status); err != nil {
-                http.Error(w, fmt.Sprintf("scanning loan row: %v", err), http.StatusInternalServerError)
-                return
-            }
+			if err := rows.Scan(&amount, &dueDateStr, &status); err != nil {
+				http.Error(w, fmt.Sprintf("scanning loan row: %v", err), http.StatusInternalServerError)
+				return
+			}
 
-            dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
-            if err != nil {
-                http.Error(w, fmt.Sprintf("parsing due date: %v", err), http.StatusInternalServerError)
-                return
-            }
+			dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("parsing due date: %v", err), http.StatusInternalServerError)
+				return
+			}
 
-            totalAmount, interestAmount, interestRate := calculateLoanDetails(amount, dueDate)
+			totalAmount, interestAmount, interestRate := calculateLoanDetails(amount, dueDate)
 
-            loans = append(loans, LoanResponse{
-                TotalAmount:    totalAmount,
-                DueDateTime:    dueDate.Format("2006-01-02 15:04:05"),
-                InitialAmount:  amount,
-                InterestRate:   interestRate,
-                InterestAmount: interestAmount,
-                Status:         status, // Include the loan status in the response
-            })
-        }
+			loans = append(loans, LoanResponse{
+				TotalAmount:    totalAmount,
+				DueDateTime:    dueDate.Format("2006-01-02 15:04:05"),
+				InitialAmount:  amount,
+				InterestRate:   interestRate,
+				InterestAmount: interestAmount,
+				Status:         status, // Include the loan status in the response
+			})
+		}
 
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(loans)
-    }
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(loans)
+	}
 }
-
 
 func (db *Database) checkLoanDetails(request LoanRequest) (LoanResponse, error) {
 	dueDateTime, err := time.Parse("2006-01-02 15:04", request.DueDateTime)
@@ -596,7 +617,6 @@ func (db *Database) checkLoanDetails(request LoanRequest) (LoanResponse, error) 
 		InterestRate:   interestRate,
 		InterestAmount: interestAmount,
 		Status:         "pending",
-		
 	}, nil
 }
 
@@ -613,7 +633,7 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 		return LoanResponse{}, fmt.Errorf("loading location: %w", err)
 	}
 	doProcess := time.Now().In(loc)
-	fmt.Println("doProcess: ",doProcess)
+	fmt.Println("doProcess: ", doProcess)
 
 	query := `INSERT INTO loan (UserID, Amount, Duedate, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
 	_, err = db.Exec(query, request.UserID, request.InitialAmount, dueDateTime.Format("2006-01-02 15:04:05"), doProcess.Format("2006-01-02 15:04:05"), "pending")
@@ -631,7 +651,7 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 	}, nil
 }
 
-//PAYMENT
+// PAYMENT
 func confirmPaymentDetails(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
@@ -694,53 +714,53 @@ func confirmPaymentDetails(db *Database) http.HandlerFunc {
 }
 
 func makePayment(db *Database) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        log.Printf("Received request to make payment for LoanID: %s", r.URL.Query().Get("loanID"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Received request to make payment for LoanID: %s", r.URL.Query().Get("loanID"))
 
-        // Check if the request method is POST
-        if r.Method != http.MethodPost {
-            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-            return
-        }
+		// Check if the request method is POST
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
 
-        // Retrieve LoanID from query parameters
-        loanIDStr := r.URL.Query().Get("loanID")
-        if loanIDStr == "" {
-            http.Error(w, "LoanID is required", http.StatusBadRequest)
-            return
-        }
+		// Retrieve LoanID from query parameters
+		loanIDStr := r.URL.Query().Get("loanID")
+		if loanIDStr == "" {
+			http.Error(w, "LoanID is required", http.StatusBadRequest)
+			return
+		}
 
-        // Convert LoanID to integer
-        loanID, err := strconv.Atoi(loanIDStr)
-        if err != nil {
-            http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
-            return
-        }
+		// Convert LoanID to integer
+		loanID, err := strconv.Atoi(loanIDStr)
+		if err != nil {
+			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
+			return
+		}
 
-        // Get current Thai time
-        tz, err := time.LoadLocation("Asia/Bangkok")
-        if err != nil {
-            http.Error(w, "Error loading timezone", http.StatusInternalServerError)
-            return
-        }
-        dopayment := time.Now().In(tz)
-        fmt.Println("dopayment: ", dopayment)
+		// Get current Thai time
+		tz, err := time.LoadLocation("Asia/Bangkok")
+		if err != nil {
+			http.Error(w, "Error loading timezone", http.StatusInternalServerError)
+			return
+		}
+		dopayment := time.Now().In(tz)
+		fmt.Println("dopayment: ", dopayment)
 
-        // Query to get the due date and loan status
-        var dueDate time.Time
-        var loanStatus string
-        query := `SELECT Duedate, Status FROM loan WHERE LoanID = ?`
-        var dueDateStr string
+		// Query to get the due date and loan status
+		var dueDate time.Time
+		var loanStatus string
+		query := `SELECT Duedate, Status FROM loan WHERE LoanID = ?`
+		var dueDateStr string
 
-        db.QueryRow(query, loanID).Scan(&dueDateStr, &loanStatus)
-        dueDate, err = time.Parse("2006-01-02 15:04:05", dueDateStr)
-        fmt.Println("duedate: ", dueDate)
-        if err != nil {
-            http.Error(w, fmt.Sprintf("Parsing due date: %v", err), http.StatusInternalServerError)
-            return
-        }
+		db.QueryRow(query, loanID).Scan(&dueDateStr, &loanStatus)
+		dueDate, err = time.Parse("2006-01-02 15:04:05", dueDateStr)
+		fmt.Println("duedate: ", dueDate)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Parsing due date: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-        // Determine the payment status
+		// Determine the payment status
 		status := "intime"
 		if dopayment.Year() > dueDate.Year() ||
 			(dopayment.Year() == dueDate.Year() && dopayment.Month() > dueDate.Month()) ||
@@ -750,47 +770,47 @@ func makePayment(db *Database) http.HandlerFunc {
 			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() == dueDate.Day() && dopayment.Hour() == dueDate.Hour() && dopayment.Minute() == dueDate.Minute() && dopayment.Second() > dueDate.Second()) {
 			status = "late"
 		}
-        //fmt.Println("status", dopayment,dueDate,status)
+		//fmt.Println("status", dopayment,dueDate,status)
 
-        // Insert the payment record into the payment table
-        _, err = db.Exec(`INSERT INTO payment (LoanID, DOPayment, Status) VALUES (?, ?, ?)`, loanID, dopayment.Format("2006-01-02 15:04:05"), status)
-        if err != nil {
-            http.Error(w, fmt.Sprintf("Error inserting payment record: %v", err), http.StatusInternalServerError)
-            return
-        }
+		// Insert the payment record into the payment table
+		_, err = db.Exec(`INSERT INTO payment (LoanID, DOPayment, Status) VALUES (?, ?, ?)`, loanID, dopayment.Format("2006-01-02 15:04:05"), status)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error inserting payment record: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-        // Update the loan status to "complete"
-        _, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
-        if err != nil {
-            http.Error(w, fmt.Sprintf("Error updating loan status: %v", err), http.StatusInternalServerError)
-            return
-        }
+		// Update the loan status to "complete"
+		_, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error updating loan status: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-        // If the payment is late, increment the user's credit score
-        if status == "late" {
-            var userID int
-            err = db.QueryRow(`SELECT UserID FROM loan WHERE LoanID = ?`, loanID).Scan(&userID)
-            if err != nil {
-                http.Error(w, fmt.Sprintf("Error fetching UserID: %v", err), http.StatusInternalServerError)
-                return
-            }
+		// If the payment is late, increment the user's credit score
+		if status == "late" {
+			var userID int
+			err = db.QueryRow(`SELECT UserID FROM loan WHERE LoanID = ?`, loanID).Scan(&userID)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Error fetching UserID: %v", err), http.StatusInternalServerError)
+				return
+			}
 
-            _, err = db.Exec(`UPDATE user SET CreditScore = CreditScore + 1 WHERE UserID = ?`, userID)
-            if err != nil {
-                http.Error(w, fmt.Sprintf("Error updating user credit score: %v", err), http.StatusInternalServerError)
-                return
-            }
-        }
+			_, err = db.Exec(`UPDATE user SET CreditScore = CreditScore + 1 WHERE UserID = ?`, userID)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Error updating user credit score: %v", err), http.StatusInternalServerError)
+				return
+			}
+		}
 
-        // Prepare a success response
-        response := map[string]string{
-            "message": "Payment processed successfully",
-            "status":  status,
-        }
+		// Prepare a success response
+		response := map[string]string{
+			"message": "Payment processed successfully",
+			"status":  status,
+		}
 
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
-    }
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
 }
 func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, error) {
 	query := `SELECT LoanID, DOPayment, Status FROM payment WHERE LoanID = ?`
@@ -813,9 +833,6 @@ func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, err
 
 	return response, nil
 }
-
-
-
 
 // Main function to set up server and routes
 func main() {
@@ -1036,7 +1053,6 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(users)
 	})
-		
 
 	//ADMIN
 	// HTTP route for admin creation
@@ -1137,7 +1153,6 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	})
-	
 
 	http.HandleFunc("/getUserLoans", getUserLoans(database))
 
@@ -1219,7 +1234,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	})
-  
+
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
