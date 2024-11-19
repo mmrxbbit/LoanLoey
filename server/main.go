@@ -147,7 +147,7 @@ func (db *Database) Signup(userAccount UserAccount) error {
 // DeleteAccount deletes an account and all related information.
 // It handles both user and admin accounts.
 func (db *Database) DeleteAccount(accountID int) error {
-	var userID sql.NullInt64 // To handle nullable UserID.
+	var userID sql.NullInt64  // To handle nullable UserID.
 	var adminID sql.NullInt64 // To handle nullable AdminID.
 
 	// Check for UserID and AdminID associated with the AccountID.
@@ -209,12 +209,11 @@ func (db *Database) DeleteAccount(accountID int) error {
 	return nil
 }
 
-
 // Login function for user login
 func (db *Database) Login(username, password string) (map[string]interface{}, error) {
 	var storedHash string
 	var accountID int64
-	var isAdmin int // Use an int to store the admin count
+	var isAdmin int          // Use an int to store the admin count
 	var userID sql.NullInt64 // To handle nullable UserID
 
 	// Query to get stored password hash and account ID
@@ -266,7 +265,6 @@ func (db *Database) Login(username, password string) (map[string]interface{}, er
 
 	return userData, nil
 }
-
 
 //USER
 
@@ -834,6 +832,28 @@ func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, err
 	return response, nil
 }
 
+// Enable CORS
+func enableCORS(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow only specific origin (you can change this based on your frontend URL)
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Allow credentials if needed (for cookies or authorization headers)
+		// w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests (OPTIONS)
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		// Pass the request to the next handler
+		h.ServeHTTP(w, r)
+	})
+}
+
 // Main function to set up server and routes
 func main() {
 	// Connect to the database
@@ -848,7 +868,7 @@ func main() {
 	//ACCOUNT
 
 	// HTTP route for user signup
-	http.HandleFunc("/signup", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/signup", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -868,10 +888,10 @@ func main() {
 		response := map[string]string{"message": "Account and User created successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
 	// HTTP route to delete an account
-	http.HandleFunc("/deleteAccount", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/deleteAccount", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -897,10 +917,10 @@ func main() {
 		response := map[string]string{"message": "Account deleted successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
 	// HTTP route for user login
-	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/login", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -923,7 +943,7 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(role)
-	})
+	})))
 
 	// http.HandleFunc("/adminpage", func(w http.ResponseWriter, r *http.Request) {
 	// 	fmt.Fprintln(w, "Welcome to the Admin Page!")
@@ -936,7 +956,7 @@ func main() {
 	//USER
 
 	// HTTP route to update user information
-	http.HandleFunc("/updateUserInfo", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/updateUserInfo", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -968,10 +988,10 @@ func main() {
 		response := map[string]string{"message": "User information updated successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
 	// HTTP route to get user information
-	http.HandleFunc("/getUserInfo", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/getUserInfo", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1005,10 +1025,10 @@ func main() {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 			return
 		}
-	})
+	})))
 
 	// HTTP route to get user credit level
-	http.HandleFunc("/getUserCreditLevel", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/getUserCreditLevel", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1035,10 +1055,10 @@ func main() {
 		response := map[string]string{"credit_level": creditLevel}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
 	// HTTP route to get all user information for admin
-	http.HandleFunc("/getAllUserInfoForAdmin", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/getAllUserInfoForAdmin", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1052,11 +1072,11 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(users)
-	})
+	})))
 
 	//ADMIN
 	// HTTP route for admin creation
-	http.HandleFunc("/createAdmin", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/createAdmin", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1076,11 +1096,11 @@ func main() {
 		response := map[string]string{"message": "Admin created successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
 	//LOAN
 	// HTTP route to get total loan amount with pending status
-	http.HandleFunc("/getTotalLoan", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/getTotalLoan", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1095,9 +1115,9 @@ func main() {
 		response := map[string]float64{"total_loan": totalLoan}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
-	http.HandleFunc("/getUserTotalLoan", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/getUserTotalLoan", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1124,9 +1144,9 @@ func main() {
 		response := map[string]float64{"total_loan": totalLoan}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
-	http.HandleFunc("/getUserTotalLoanHistory", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/getUserTotalLoanHistory", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1152,11 +1172,11 @@ func main() {
 		response := map[string]float64{"total_loan": totalLoan}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
-	http.HandleFunc("/getUserLoans", getUserLoans(database))
+	http.Handle("/getUserLoans", enableCORS(http.HandlerFunc(getUserLoans(database))))
 
-	http.HandleFunc("/checkLoanDetails", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/checkLoanDetails", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1176,10 +1196,10 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
 	// / HTTP route for applying for a loan
-	http.HandleFunc("/applyForLoan", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/applyForLoan", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1199,15 +1219,15 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
 	//PAYMENT
-	http.HandleFunc("/confirmPaymentDetails", confirmPaymentDetails(database))
+	http.Handle("/confirmPaymentDetails", enableCORS(http.HandlerFunc(confirmPaymentDetails(database))))
 
 	// Register your handlers
-	http.HandleFunc("/makePayment", makePayment(database))
+	http.Handle("/makePayment", enableCORS(http.HandlerFunc(makePayment(database))))
 
-	http.HandleFunc("/checkPaymentDetails", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/checkPaymentDetails", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1233,7 +1253,7 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-	})
+	})))
 
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
