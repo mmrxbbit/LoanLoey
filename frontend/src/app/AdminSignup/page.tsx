@@ -26,7 +26,7 @@ export default function AdminSignup() {
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent default page reload
 
     // Password confirmation check
     if (formData.password !== formData.confirmPassword) {
@@ -34,7 +34,7 @@ export default function AdminSignup() {
       return;
     }
     try {
-      const res = await fetch("http://localhost:8080/signup", {
+      const res = await fetch("http://localhost:8080/createAdmin", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -50,7 +50,7 @@ export default function AdminSignup() {
       if (res.ok) {
         const data = await res.json();
         setResponseMessage(data.message);
-        router.push("/AdminHome"); // Navigate to home page on successful signup
+        router.push("/AdminHome"); // Navigate to admin home page on successful signup
       } else {
         const errorData = await res.json();
         setResponseMessage(errorData.message || "Signup failed.");
@@ -67,7 +67,7 @@ export default function AdminSignup() {
         <h2 className="mb-4 font-bold text-2xl text-center">Sign up</h2>
 
         {/* Signup Form */}
-        <form className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"
             name="first_name"
