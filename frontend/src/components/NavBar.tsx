@@ -15,7 +15,7 @@ export default function NavBar() {
   ];
 
   const [userData, setUserData] = useState({
-    userId: 1,
+    userId: null,
     username: null,
     debt: null,
     credit: null,

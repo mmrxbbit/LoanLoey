@@ -51,7 +51,7 @@ export default function Signup() {
           first_name: formData.first_name,
           last_name: formData.last_name,
           id_card: formData.id_card,
-          dob: formData.dob, // Ensure this is in YYYY-MM-DD format
+          dob: formData.dob,
           phone_no: formData.phone_no,
           address: formData.address,
           bank_name: formData.bank_name,

@@ -25,15 +25,18 @@ export default function LoginPage() {
       });
 
       if (response.ok) {
-        // The backend will redirect to `/homepage` or `/adminpage`
-        const redirectPath = "/home"; // Default path; adjust as needed
-        if (redirectPath === "/home") {
-          router.push("/home"); // Map backend path to frontend path
-        } else if (redirectPath === "/AdminHome") {
-          router.push("/AdminHome"); // Map backend path to frontend path
+        const roleData = await response.json();
+
+        if (roleData.role === "admin") {
+          router.push("/AdminHome");
+        } else if (roleData.role === "user") {
+          router.push("/home");
         } else {
-          setErrorMessage("Unexpected redirect path from backend.");
+          setErrorMessage("Unexpected role from backend.");
         }
+      } else if (response.status === 401) {
+        // Unauthorized error - invalid username or password
+        setErrorMessage("Incorrect username or password, please try again.");
       } else {
         const errorData = await response.text();
         setErrorMessage(errorData || "Login failed.");
@@ -60,14 +63,14 @@ export default function LoginPage() {
   return (
     <div className="flex justify-center items-center bg-black min-h-screen text-white">
       <div className="flex flex-col items-center space-y-6 p-8 w-1/3">
-        {/* Logo */}
+        {/* logo */}
         <div className="text-center">
           <img src="/logo2.png" alt="LoanLoey Logo" className="mb-1 w-60" />
         </div>
 
         <h1 className="mt-2 font-bold text-3xl">Sign in to LoanLoey</h1>
 
-        {/* Login Form */}
+        {/* login form */}
         <form
           className="space-y-4 bg-gray-700 p-6 rounded-lg w-full max-w-xs"
           onSubmit={handleLogin}
@@ -120,10 +123,10 @@ export default function LoginPage() {
             </button>
           </p>
 
-          {/* Admin Signup Password Popup */}
+          {/* password pop-up for sign up admin */}
           {showAdminPopup && (
-            <div className="z-50 fixed inset-0 flex justify-center items-center bg-black bg-opacity-50">
-              <div className="bg-gray-200 p-6 rounded-md w-80 text-center">
+            <div className="z-50 fixed inset-0 flex justify-center items-center bg-black bg-opacity-75">
+              <div className="bg-gray-200 p-6 rounded-2xl w-80 text-center">
                 <h2 className="mb-4 font-bold text-gray-800 text-large">
                   Please fill in the password
                 </h2>
@@ -132,20 +135,20 @@ export default function LoginPage() {
                   placeholder="Password"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="border-gray-400 mb-3 p-2 border rounded w-full text-black"
+                  className="border-gray-400 mb-3 p-2 border rounded-xl w-full text-black"
                 />
                 {passwordError && (
                   <p className="mb-2 text-red-500 text-sm">{passwordError}</p>
                 )}
                 <button
                   onClick={handlePasswordSubmit}
-                  className="bg-black p-2 rounded w-full text-white"
+                  className="bg-black hover:bg-transparent shadow-xl p-2 border hover:border border-black hover:border-black hover:border-solid rounded-xl w-full text-white hover:text-green-600"
                 >
                   OK
                 </button>
                 <button
                   onClick={() => setShowAdminPopup(false)}
-                  className="mt-3 text-gray-500 text-sm"
+                  className="mt-3 text-gray-500 text-sm hover:underline"
                 >
                   Cancel
                 </button>

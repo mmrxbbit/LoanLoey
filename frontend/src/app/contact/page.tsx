@@ -5,10 +5,9 @@ import Footer from "../../components/Footer";
 export default function ContactPage() {
   return (
     <div className="bg-black min-h-screen text-white">
-      {/* Navigation Bar */}
       <NavBar />
 
-      {/* Main Contact Section */}
+      {/* image */}
       <div className="relative">
         <div
           className="flex justify-center items-center bg-cover bg-center h-96"
@@ -20,9 +19,9 @@ export default function ContactPage() {
         </div>
       </div>
 
-      {/* Contact Information Section */}
+      {/* contact info. */}
       <div className="gap-8 grid grid-cols-2 px-16 py-12">
-        {/* Left Column */}
+        {/* left column */}
         <div>
           <h2 className="mb-4 font-bold text-2xl">Phone</h2>
           <p>
@@ -34,20 +33,20 @@ export default function ContactPage() {
 
           <h2 className="mt-8 mb-4 font-bold text-2xl">Email</h2>
           <p>
-            Because you might need help anytime, day or night. So email and
+            If you need help anytime, day or night. Feel free to email us and
             we'll get back to you as soon as possible. <br />
-            <a href="mailto:sinnoClubeci@gmail.com" className="underline">
-              sinnoClubeci@gmail.com
+            <a href="mailto:loanloey@gmail.com" className="underline">
+              loanloey@gmail.com
             </a>
           </p>
 
           <h2 className="mt-8 mb-4 font-bold text-2xl">Map</h2>
-          <div className="bg-gray-500 mr-8 ml-2 w-auto h-auto">
+          <div className="mr-8 ml-2">
             <img src="/img4.png" alt="map" className="w-auto h-auto"></img>
           </div>
         </div>
 
-        {/* Right Column */}
+        {/* right column */}
         <div>
           <h2 className="mb-4 font-bold text-2xl">Social Media</h2>
           <p className="mb-4">
@@ -77,7 +76,6 @@ export default function ContactPage() {
         </div>
       </div>
 
-      {/* Footer */}
       <Footer />
     </div>
   );
