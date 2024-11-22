@@ -15,7 +15,7 @@ export default function NavBar() {
   ];
 
   const [userData, setUserData] = useState({
-    userId: null,
+    userId: 20,
     username: null,
     debt: null,
     credit: null,
@@ -42,6 +42,19 @@ export default function NavBar() {
           username: userInfo.first_name, // Update the username
         }));
 
+        // Fetch user credit
+        const userCreditResponse = await fetch(
+          `http://localhost:8080/getUserCreditLevel?userID=${userData.userId}`
+        );
+        if (!userCreditResponse.ok) {
+          throw new Error(`HTTP error! status: ${userCreditResponse.status}`);
+        }
+        const userCredit = await userCreditResponse.json();
+        setUserData((prevState) => ({
+          ...prevState, // Keep the previous state values
+          credit: userCredit.credit_level, // Update the credit
+        }));
+
         // Fetch user total debt
         const userDebtResponse = await fetch(
           `http://localhost:8080/getUserTotalLoan?userID=${userData.userId}`
@@ -52,12 +65,22 @@ export default function NavBar() {
         const userDebt = await userDebtResponse.json();
         setUserData((prevState) => ({
           ...prevState, // Keep the previous state values
-          debt: userDebt.total_loan, // Update the username
+          debt: userDebt.totalLoan, // Update the total loan
         }));
 
         // Update derived states
         setIsLoggedIn(!!userInfo.first_name);
-        setDelete(userDebt.total_loan > 0 ? false : true);
+
+        // Set credit color
+        if (userCredit.credit_level === "green") {
+          setcreditColor("bg-green-400");
+        } else if (userCredit.credit_level === "yellow") {
+          setcreditColor("bg-amber-500");
+        } else {
+          setcreditColor("bg-red-600");
+        }
+
+        setDelete(userDebt.totalLoan > 0 ? false : true);
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
@@ -65,16 +88,6 @@ export default function NavBar() {
 
     fetchUserData();
   }, [userData.userId]);
-
-  useEffect(() => {
-    if (userData.credit === "green") {
-      setcreditColor("bg-green-400");
-    } else if (userData.credit === "yellow") {
-      setcreditColor("bg-amber-500");
-    } else {
-      setcreditColor("bg-red-600");
-    }
-  }, []);
 
   const [showOverlay1, setShowOverlay1] = useState(false);
   const [showOverlay2, setShowOverlay2] = useState(false);

@@ -12,6 +12,7 @@ import {
 } from "@headlessui/react";
 
 interface Props {
+  id: number;
   total: number;
   dueDate: string;
   initAmount: number;
@@ -22,6 +23,7 @@ interface Props {
 }
 
 interface LoanResponse {
+  loan_id: number;
   total: number;
   due_date_time: string;
   initial_amount: number;
@@ -31,54 +33,102 @@ interface LoanResponse {
 }
 
 function DebtInfo(props: Props) {
-  const [loanStatus, setStatus] = useState("");
+  const [loanNote, setNote] = useState("");
   const [statusColor, setColor] = useState("");
+  const [canPay, setPay] = useState(false);
+  const [totalAmount, setTotal] = useState(0);
+
   useEffect(() => {
-    // Determine loanStatus based on status
-    if (props.status === "complete") {
-      setStatus("01/01/2100");
-      setColor("text-emerald-500");
-    } else if (props.status === "overdue") {
-      setStatus("*overdue*");
-      setColor("text-red-600");
-    } else {
-      setStatus("");
-      setColor("");
+    switch (props.status) {
+      case "complete":
+        async function fetchPaymentDetails() {
+          try {
+            const response = await fetch(
+              `http://localhost:8080/checkPaymentDetails?loanID=${props.id}`
+            );
+            if (!response.ok) {
+              throw new Error("Failed to fetch payment details");
+            }
+
+            const paymentDetails = await response.json();
+            setNote(`Complete on: ${paymentDetails.doPayment}`);
+          } catch (error) {
+            console.error("Error fetching payment details:", error);
+          }
+        }
+        fetchPaymentDetails();
+
+        setColor("text-emerald-500");
+        setPay(false);
+        break;
+      case "overdue":
+        setNote("*overdue*");
+        setColor("text-red-600");
+        setPay(true);
+        break;
+      default:
+        setNote("");
+        setColor("");
+        setPay(true);
     }
   }, [props.status]);
 
   const [showOverlay1, setShowOverlay1] = useState(false);
   const [showOverlay2, setShowOverlay2] = useState(false);
 
-  const [canPay, setPay] = useState(false);
-  useEffect(() => {
-    if (props.status === "complete") {
-      setPay(false);
-    } else {
-      setPay(true);
-    }
-  }, [props.status]);
-
   // Handle the submit button click
-  const openOverlay1 = (event) => {
+  const openOverlay1 = async (event) => {
     event.preventDefault(); // Prevent form submission
-    setShowOverlay1(true);
+
+    // Make an API request to check details for the loan
+    try {
+      const response = await fetch(
+        `http://localhost:8080/confirmPaymentDetails?loanID=${props.id}`
+      );
+      if (!response.ok) {
+        throw new Error(
+          `Failed to confirm payment details. Status: ${response.status}`
+        );
+      }
+
+      const loanTotal = await response.json();
+      setTotal(loanTotal.totalAmount);
+
+      console.log("Checking Detail Response:", loanTotal); // For debugging
+      setShowOverlay1(true);
+    } catch (error) {
+      console.error("Error checking loan detail:", error);
+    }
   };
 
   // close overlay 1 open overlay 2
-  const confirmOverlay1 = (event) => {
+  const confirmOverlay1 = async (event) => {
     event.preventDefault();
 
-    setShowOverlay1(false);
-    setShowOverlay2(true);
+    // Make an API request to confirm payment
+    try {
+      const response = await fetch(
+        `http://localhost:8080/makePayment?loanID=${props.id}`,
+        {
+          method: "POST", // Ensure you are sending a POST request
+        }
+      );
+      if (!response.ok) {
+        throw new Error(
+          `Failed to confirm payment. Status: ${response.status}`
+        );
+      }
 
-    // Update loan status to complete
-    props.updateStatus();
-  };
+      const confirm = await response.json();
+      console.log("Confirm Payment Response:", confirm); // For debugging
 
-  // close overlay 2
-  const closeOverlay2 = () => {
-    setShowOverlay2(false);
+      setShowOverlay1(false);
+      setShowOverlay2(true);
+
+      props.updateStatus(); // Update loan status to complete
+    } catch (error) {
+      console.error("Error confirming payment:", error);
+    }
   };
 
   return (
@@ -104,14 +154,16 @@ function DebtInfo(props: Props) {
         <div className="w-3/6"></div>
         {/* pay button */}
         <div className="flex flex-col-reverse justify-start items-center gap-y-1 w-1/6">
-          <button
-            type="button"
-            className="flex justify-center items-center bg-black hover:bg-gray-700 rounded-md w-24 h-8 text-white"
-            onClick={!canPay ? undefined : (event) => openOverlay1(event)}
-          >
-            pay
-          </button>
-          <p className={statusColor}>{loanStatus}</p>
+          {canPay ? (
+            <button
+              type="button"
+              className="flex justify-center items-center bg-black hover:bg-gray-700 rounded-md w-24 h-8 text-white"
+              onClick={openOverlay1}
+            >
+              pay
+            </button>
+          ) : null}
+          <p className={`text-nowrap ${statusColor}`}>{loanNote}</p>
         </div>
       </div>
 
@@ -125,7 +177,7 @@ function DebtInfo(props: Props) {
           <div className="flex justify-center items-center min-h-full">
             <DialogPanel
               transition
-              className="relative border-gray-300 bg-white data-[closed]:opacity-0 shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
+              className="relative border-gray-300 bg-white data-[closed]:opacity-0 shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
             >
               <div className="bg-white px-10 pt-2 pb-4">
                 <div className="mt-2 text-center">
@@ -137,7 +189,7 @@ function DebtInfo(props: Props) {
                   </DialogTitle>
                   <div className="flex flex-row justify-start gap-x-4 mt-4">
                     <p className="font-semibold">Total</p>
-                    <p className="font-base">total_num</p>
+                    <p className="font-base">{totalAmount}</p>
                   </div>
                   <div className="mt-2">
                     <p className="text-left text-sm">
@@ -171,7 +223,7 @@ function DebtInfo(props: Props) {
         </div>
       </Dialog>
 
-      <Dialog open={showOverlay2} onClose={closeOverlay2}>
+      <Dialog open={showOverlay2} onClose={() => setShowOverlay2(false)}>
         <DialogBackdrop
           transition
           className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[enter]:ease-out data-[leave]:ease-in"
@@ -181,7 +233,7 @@ function DebtInfo(props: Props) {
           <div className="flex justify-center items-center sm:items-center p-4 sm:p-0 min-h-full text-center">
             <DialogPanel
               transition
-              className="relative border-gray-300 bg-white shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
+              className="relative border-gray-300 bg-white shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
             >
               <div className="flex flex-col justify-center gap-y-2 p-4">
                 <div className="flex justify-center w-full">
@@ -205,7 +257,7 @@ function DebtInfo(props: Props) {
 }
 
 export default function Debt() {
-  const userId = 1;
+  const userId = 20;
   const [loanInfo, setLoanInfo] = useState<LoanResponse[] | null>(null);
 
   const updateLoanStatus = (index: number) => {
@@ -219,9 +271,9 @@ export default function Debt() {
 
   useEffect(() => {
     async function fetchLoanData() {
-      if (userId == null) return; // Ensure userId is valid
+      if (!userId) return; // Ensure userId is valid
+      // Fetch loan info
       try {
-        // Fetch loan info
         const response = await fetch(
           `http://localhost:8080/getUserLoans?userID=${userId}`
         );
@@ -230,22 +282,19 @@ export default function Debt() {
         }
 
         const loanData: LoanResponse[] = await response.json();
-        console.log(loanData);
-
+        console.log("Check Loan Data:", loanData);
         // Process the data and calculate status
-        const updatedLoanInfo = loanData.map((loan) => {
-          if (loan.status === "pending") {
-            const status =
-              new Date(loan.due_date_time) > new Date() ? "pending" : "overdue";
-            return {
-              ...loan,
-              status,
-            };
-          }
-          return loan; // Keep loans with complete status unchanged
-        });
-
-        setLoanInfo(updatedLoanInfo); // Update the state
+        if (loanData) {
+          const updatedLoanInfo = loanData.map((loan) => ({
+            ...loan,
+            status:
+              loan.status === "pending" &&
+              new Date(loan.due_date_time) < new Date()
+                ? "overdue"
+                : loan.status,
+          }));
+          setLoanInfo(updatedLoanInfo);
+        } // Update the state
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
@@ -264,7 +313,8 @@ export default function Debt() {
         {loanInfo
           ? loanInfo.map((loan, index) => (
               <DebtInfo
-                key={index} // Use index as the key or use a unique loanId if available
+                key={index}
+                id={loan.loan_id}
                 total={loan.total}
                 dueDate={loan.due_date_time}
                 initAmount={loan.initial_amount}

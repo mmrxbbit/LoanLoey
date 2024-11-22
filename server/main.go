@@ -47,6 +47,7 @@ type LoanRequest struct {
 
 // LoanResponse struct represents the response after applying for a loan
 type LoanResponse struct {
+	LoanID         int     `json:"loan_id"`
 	TotalAmount    float64 `json:"total"`
 	DueDateTime    string  `json:"due_date_time"`
 	InitialAmount  float64 `json:"initial_amount"`
@@ -471,10 +472,8 @@ func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 	defer rows.Close()
 
 	var totalLoan float64
-	var found bool // Track if any loan rows were found
 
 	for rows.Next() {
-		found = true // Set found to true if a row is processed
 		var amount float64
 		var dueDateStr string
 
@@ -493,10 +492,6 @@ func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 
 	if err := rows.Err(); err != nil {
 		return 0, fmt.Errorf("error iterating rows: %w", err)
-	}
-
-	if !found {
-		return 0, fmt.Errorf("no pending loans found for user with ID %d", userID)
 	}
 
 	return totalLoan, nil
@@ -557,8 +552,8 @@ func getUserLoans(db *Database) http.HandlerFunc {
 			return
 		}
 
-		// Updated query to include Status column
-		query := `SELECT Amount, Duedate, Status FROM loan WHERE UserID = ?`
+		// Updated query to include LoanID
+		query := `SELECT LoanID, Amount, Duedate, Status FROM loan WHERE UserID = ?`
 		rows, err := db.Query(query, userID)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("querying loans: %v", err), http.StatusInternalServerError)
@@ -569,10 +564,11 @@ func getUserLoans(db *Database) http.HandlerFunc {
 		var loans []LoanResponse
 
 		for rows.Next() {
+			var loanID int
 			var amount float64
 			var dueDateStr, status string
 
-			if err := rows.Scan(&amount, &dueDateStr, &status); err != nil {
+			if err := rows.Scan(&loanID, &amount, &dueDateStr, &status); err != nil {
 				http.Error(w, fmt.Sprintf("scanning loan row: %v", err), http.StatusInternalServerError)
 				return
 			}
@@ -586,6 +582,7 @@ func getUserLoans(db *Database) http.HandlerFunc {
 			totalAmount, interestAmount, interestRate := calculateLoanDetails(amount, dueDate)
 
 			loans = append(loans, LoanResponse{
+				LoanID:         loanID, // Include the loan ID in the response
 				TotalAmount:    totalAmount,
 				DueDateTime:    dueDate.Format("2006-01-02 15:04:05"),
 				InitialAmount:  amount,
@@ -810,6 +807,7 @@ func makePayment(db *Database) http.HandlerFunc {
 		json.NewEncoder(w).Encode(response)
 	}
 }
+
 func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, error) {
 	query := `SELECT LoanID, DOPayment, Status FROM payment WHERE LoanID = ?`
 	var loanIDFromDB int

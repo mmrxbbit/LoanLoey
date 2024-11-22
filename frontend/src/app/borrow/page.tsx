@@ -21,12 +21,19 @@ export default function Borrow() {
   const [message, setMessage] = useState("");
 
   const [requestData, setRequestData] = useState({
-    userId: 1,
+    userId: 20,
     amount: 0,
     returnDate: null,
   });
 
-  const interestRate = 0.02;
+  const [detail, setDetail] = useState({
+    total: null,
+    duedate: null,
+    initAmount: null,
+    interestRate: null,
+    interest: null,
+  });
+
   const minAmount = 1000;
 
   // Get the input element by name
@@ -53,41 +60,72 @@ export default function Borrow() {
 
   // Handle input change
   const handleAmountChange = (e) => {
-    const fvalue = parseInt(e.target.value);
+    const value = parseInt(e.target.value);
     setRequestData((prevState) => ({
       ...prevState, // Keep the previous state values
-      amount: fvalue, // Update the username
+      amount: value, // Update amount
     }));
     setMessage("");
   };
   const handleDateChange = (e) => {
+    const selectedDate = e.target.value;
+    const formattedReturnDate = formatter(selectedDate);
     setRequestData((prevState) => ({
       ...prevState, // Keep the previous state values
-      returnDate: e.target.value, // Update the username
+      returnDate: formattedReturnDate, // Update return date
     }));
   };
 
-  // Calculate interest
-  const calculateInterest = () => {
-    return requestData.amount * interestRate;
-  };
-
   // Handle the submit button click
-  const openOverlay1 = (event) => {
+  const openOverlay1 = async (event) => {
     event.preventDefault(); // Prevent form submission
     if (requestData.amount < minAmount) {
       setMessage("You must borrow at least 1000");
       return; // Prevent oveylay from opening
     }
-    setShowOverlay1(true);
+
+    // Make an API request to check details for the loan
+    try {
+      const response = await fetch("http://localhost:8080/checkLoanDetails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: requestData.userId,
+          initial_amount: requestData.amount,
+          due_date_time: requestData.returnDate,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to check loan details. Status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      setDetail({
+        total: data.total,
+        duedate: data.due_date_time,
+        initAmount: data.initial_amount,
+        interestRate: data.interest_rate,
+        interest: data.interest,
+      });
+      console.log("Checking Detail Response:", data); // For debugging
+
+      setShowOverlay1(true);
+    } catch (error) {
+      console.error("Error checking loan detail:", error);
+    }
   };
 
   // Confirm button click (close overlay 1 open overlay 2)
   const confirmOverlay1 = async (event) => {
     event.preventDefault();
-    const formattedReturnDate = formatter(requestData.returnDate);
+
+    // Make an API request to apply for the loan
     try {
-      // Make an API request to apply for the loan
       const response = await fetch("http://localhost:8080/applyForLoan", {
         method: "POST",
         headers: {
@@ -96,7 +134,7 @@ export default function Borrow() {
         body: JSON.stringify({
           user_id: requestData.userId,
           initial_amount: requestData.amount,
-          due_date_time: formattedReturnDate,
+          due_date_time: requestData.returnDate,
         }),
       });
 
@@ -136,10 +174,8 @@ export default function Borrow() {
               <input
                 type="number"
                 name="amount"
-                min="1000"
                 value={message ? "" : requestData.amount}
                 placeholder={message || "Amount you want borrow"}
-                required
                 onChange={handleAmountChange}
                 className={`col-span-3 border border-2 border-gray-300 px-4 py-2 rounded-md w-full text-black hover:border-gray-400 [&::-webkit-inner-spin-button]:appearance-none ${
                   message ? "border-red-500" : "border-gray-300"
@@ -205,21 +241,13 @@ export default function Borrow() {
                       <p className="text-base font-semibold">Interest</p>
                     </div>
                     <div className="flex flex-col gap-y-2 text-left">
+                      <p className="text-base font-base">{detail.total}</p>
+                      <p className="text-base font-base">{detail.duedate}</p>
+                      <p className="text-base font-base">{detail.initAmount}</p>
                       <p className="text-base font-base">
-                        {requestData.amount + calculateInterest()}
+                        {detail.interestRate}
                       </p>
-                      <p className="text-base font-base">
-                        {requestData.returnDate
-                          ? requestData.returnDate
-                          : "No date selected"}
-                      </p>
-                      <p className="text-base font-base">
-                        {requestData.amount}
-                      </p>
-                      <p className="text-base font-base">2%</p>
-                      <p className="text-base font-base">
-                        {calculateInterest()}
-                      </p>
+                      <p className="text-base font-base">{detail.interest}</p>
                     </div>
                   </div>
                 </div>
