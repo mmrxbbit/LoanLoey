@@ -17,7 +17,7 @@ export default function AboutUs() {
         }}
       >
         <div className="absolute inset-0 flex justify-center items-center bg-black bg-opacity-50">
-          <h1 className="font-bold text-8xl text-white">About Us</h1>
+          <h1 className="font-bold text-6xl text-white">About Us</h1>
         </div>
       </div>
 
@@ -56,13 +56,21 @@ export default function AboutUs() {
       </div>
 
       {/* Our Co-founder */}
-      <div className="bg-black px-8 py-16 text-center">
+      <div className="bg-black px-8 py-16 text-center text-white">
         <h2 className="mb-8 font-bold text-3xl">Our Co-founder</h2>
         <div className="flex justify-center space-x-8">
-          {["Boss Pui", "Boss Ming", "Boss Film"].map((name) => (
-            <div key={name} className="flex flex-col items-center">
-              <div className="bg-gray-500 mb-4 rounded-full w-32 h-32" />
-              <p>{name}</p>
+          {[
+            { name: "Boss Pui", image: "/boss-pui.png" },
+            { name: "Boss Ming", image: "/boss-ming.png" },
+            { name: "Boss Film", image: "/boss-film.png" },
+          ].map((cofounder) => (
+            <div key={cofounder.name} className="flex flex-col items-center">
+              <img
+                src={cofounder.image}
+                alt={`${cofounder.name}'s photo`}
+                className="mb-4 rounded-full w-32 h-32 object-cover"
+              />
+              <p>{cofounder.name}</p>
             </div>
           ))}
         </div>

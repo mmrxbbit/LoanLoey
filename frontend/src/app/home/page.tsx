@@ -17,8 +17,8 @@ export default function Home() {
             className="absolute inset-0 opacity-50 w-full h-full object-cover"
           />
           <div className="absolute inset-0 flex flex-col justify-center items-center text-white">
-            <h1 className="font-bold text-4xl">Your Trust, Our Expertise</h1>
-            <p className="mt-2 text-lg">Loan now with LoanLoey</p>
+            <h1 className="font-bold text-5xl">Your Trust, Our Expertise</h1>
+            <p className="mt-2 text-2xl">Loan now with LoanLoey</p>
           </div>
         </section>
         <section className="bg-black px-16 py-20 text-white">

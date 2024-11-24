@@ -15,7 +15,7 @@ export default function ContactPage() {
             backgroundImage: "url('/img3.png')",
           }}
         >
-          <h1 className="font-bold text-7xl text-white">Contact</h1>
+          <h1 className="font-bold text-6xl text-white">Contact</h1>
         </div>
       </div>
 

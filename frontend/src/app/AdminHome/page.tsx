@@ -1,202 +1,134 @@
-// pages/admin/home.tsx
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function AdminHome() {
-  // Sample data for users' debts and risk levels
-  const totalDebt = 85000;
-  const usersData = [
+  const [TotalLoan, setTotalLoan] = useState<number | null>(null);
+  const [usersData, setUsersData] = useState<
     {
-      id: 1,
-      name: "Jane Doe",
-      totalDebt: 10000,
-      remainingDebt: 10000,
-      risk: "red",
-    },
-    {
-      id: 2,
-      name: "John Smith",
-      totalDebt: 20000,
-      remainingDebt: 15000,
-      risk: "green",
-    },
-    {
-      id: 3,
-      name: "Somsri Meesuk",
-      totalDebt: 30000,
-      remainingDebt: 20000,
-      risk: "green",
-    },
-    {
-      id: 4,
-      name: "Somsak Kondee",
-      totalDebt: 40000,
-      remainingDebt: 40000,
-      risk: "yellow",
-    },
-    {
-      id: 5,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 6,
-      name: "Mana Meejai",
-      totalDebt: 8000,
-      remainingDebt: 5000,
-      risk: "yellow",
-    },
-    {
-      id: 7,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 8,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 9,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 10,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 11,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 12,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 13,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 14,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 15,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 16,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 17,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 18,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 19,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    {
-      id: 20,
-      name: "Manee Meena",
-      totalDebt: 50000,
-      remainingDebt: 3000,
-      risk: "green",
-    },
-    // Add more user data as needed
-  ];
+      id: number;
+      username: string;
+      totalDebt: string | number;
+      remainingDebt: string | number;
+      risk: string;
+    }[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch total debt
+        const totalDebtResponse = await fetch(
+          "http://localhost:8080/getTotalLoan"
+        );
+        if (!totalDebtResponse.ok) {
+          throw new Error("Failed to fetch total debt");
+        }
+        const totalDebtData = await totalDebtResponse.json();
+        console.log("Total Debt Data:", totalDebtData);
+        setTotalLoan(totalDebtData.total_loan);
+
+        // Fetch user info
+        const usersResponse = await fetch(
+          "http://localhost:8080/getAllUserInfoForAdmin"
+        );
+        if (!usersResponse.ok) {
+          throw new Error("Failed to fetch user data");
+        }
+        const usersData = await usersResponse.json();
+        console.log("Users Data:", usersData);
+
+        // Ensure correct formatting and fallback values
+        const formattedUsers = usersData.map((user: any, index: number) => ({
+          id: user.userID || index,
+          username: user.username || `Unknown User ${index + 1}`,
+          totalDebt: user.total_loan !== undefined ? user.total_loan : "N/A",
+          remainingDebt:
+            user.total_loan_remain !== undefined
+              ? user.total_loan_remain
+              : "N/A",
+          risk: user.risk_level || "unknown",
+        }));
+
+        console.log("Formatted Users:", formattedUsers);
+        setUsersData(formattedUsers);
+      } catch (error: any) {
+        console.error("Error fetching data:", error);
+        setError(error.message || "Something went wrong");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdminData();
+  }, []);
 
   return (
     <div className="bg-gray-100 p-6 min-h-screen text-gray-800">
-      {/* Summary of total debt */}
-      <div className="bg-black mb-4 p-4 rounded-md text-center text-white">
-        <h2 className="font-bold text-xl">All User Debt: {totalDebt} ฿</h2>
-      </div>
+      {/* Loading/Error States */}
+      {loading && <p>Loading...</p>}
+      {error && <p className="text-red-500">Error: {error}</p>}
 
-      {/* Scrollable Table */}
-      <div className="bg-white shadow-lg p-4 rounded-md max-h-96 overflow-y-auto">
-        <table className="border-collapse w-full text-left">
-          <thead>
-            <tr>
-              <th className="p-2 border-b">Name Surname</th>
-              <th className="p-2 border-b">Total Debt</th>
-              <th className="p-2 border-b">Remaining Debt</th>
-              <th className="p-2 border-b">Risk Lv</th>
-            </tr>
-          </thead>
-          <tbody>
-            {usersData.map((user) => (
-              <tr key={user.id}>
-                <td className="p-2 border-b">
-                  <Link
-                    href={`/AdminUserInfo/${user.id}`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {user.name}
-                  </Link>
-                </td>
-                <td className="p-2 border-b">{user.totalDebt} ฿</td>
-                <td className="p-2 border-b">{user.remainingDebt} ฿</td>
-                <td
-                  className={`p-2 border-b ${
-                    user.risk === "red"
-                      ? "text-red-500"
-                      : user.risk === "green"
-                      ? "text-green-500"
-                      : "text-yellow-500"
-                  }`}
-                >
-                  {user.risk}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {!loading && !error && (
+        <>
+          {/* Summary of total debt */}
+          <div className="bg-black mb-4 p-4 rounded-md text-center text-white">
+            <h2 className="font-bold text-xl">
+              All User Debt: {TotalLoan !== null ? `${TotalLoan} ฿` : "N/A"}
+            </h2>
+          </div>
+
+          {/* Scrollable Table */}
+          <div className="bg-white shadow-lg p-4 rounded-md max-h-96 overflow-y-auto">
+            <table className="border-collapse w-full text-left">
+              <thead>
+                <tr>
+                  <th className="p-2 border-b">Username</th>
+                  <th className="p-2 border-b">Total Debt</th>
+                  <th className="p-2 border-b">Remaining Debt</th>
+                  <th className="p-2 border-b">Risk Level</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usersData.map((user) => (
+                  <tr key={user.id}>
+                    <td className="p-2 border-b">
+                      <Link
+                        href={`/AdminUserInfo/${user.id}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {user.username}
+                      </Link>
+                    </td>
+                    <td className="p-2 border-b text-black">
+                      {user.totalDebt} ฿
+                    </td>
+                    <td className="p-2 border-b text-black">
+                      {user.remainingDebt} ฿
+                    </td>
+                    <td
+                      className={`p-2 border-b ${
+                        user.risk === "red"
+                          ? "text-red-500"
+                          : user.risk === "green"
+                          ? "text-green-500"
+                          : "text-yellow-500"
+                      }`}
+                    >
+                      {user.risk}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <div className="flex justify-end">
         <Link href="/login">

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Cookies from "js-cookie"; // Import js-cookie
 
 export default function LoginPage() {
   const [showAdminPopup, setShowAdminPopup] = useState(false);
@@ -26,6 +27,13 @@ export default function LoginPage() {
 
       if (response.ok) {
         const roleData = await response.json();
+
+        // Store userId in cookies using js-cookie
+        Cookies.set("userId", roleData.userId, {
+          expires: 7,
+          secure: true,
+          sameSite: "strict",
+        });
 
         if (roleData.role === "admin") {
           router.push("/AdminHome");

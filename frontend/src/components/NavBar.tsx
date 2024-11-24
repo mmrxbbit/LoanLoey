@@ -6,6 +6,7 @@ import dropdownIcon from "../../public/dropdown_arrow.svg";
 import { useRouter } from "next/navigation";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
+import Cookies from "js-cookie";
 
 export default function NavBar() {
   const PageName = [
@@ -15,7 +16,7 @@ export default function NavBar() {
   ];
 
   const [userData, setUserData] = useState({
-    userId: 20,
+    userId: Cookies.get("userId") || null,
     username: null,
     debt: null,
     credit: null,
@@ -27,7 +28,18 @@ export default function NavBar() {
 
   useEffect(() => {
     async function fetchUserData() {
-      if (userData.userId == null) return; // Ensure userId is valid
+      const userId = Cookies.get("userId");
+      if (!userId) {
+        setUserData({
+          userId: null,
+          username: null,
+          debt: null,
+          credit: null,
+        });
+        setIsLoggedIn(false);
+        return;
+      }
+
       try {
         // Fetch user info
         const userInfoResponse = await fetch(
