@@ -57,8 +57,8 @@ export default function AboutUs() {
 
       {/* Our Co-founder */}
       <div className="bg-black px-8 py-16 text-center text-white">
-        <h2 className="mb-8 font-bold text-3xl">Our Co-founder</h2>
-        <div className="flex justify-center space-x-8">
+        <h2 className="mb-14 font-bold text-4xl">Our Co-founder</h2>
+        <div className="flex justify-center space-x-40 text-xl">
           {[
             { name: "Boss Pui", image: "/boss-pui.png" },
             { name: "Boss Ming", image: "/boss-ming.png" },
@@ -68,13 +68,15 @@ export default function AboutUs() {
               <img
                 src={cofounder.image}
                 alt={`${cofounder.name}'s photo`}
-                className="mb-4 rounded-full w-32 h-32 object-cover"
+                className="mb-4 rounded-full w-52 h-52 object-cover"
               />
               <p>{cofounder.name}</p>
             </div>
           ))}
         </div>
       </div>
+
+      <div className="h-12"></div>
 
       {/* Footer */}
       <Footer />

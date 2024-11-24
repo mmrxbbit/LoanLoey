@@ -44,9 +44,9 @@ export default function AdminHome() {
         console.log("Users Data:", usersData);
 
         // Ensure correct formatting and fallback values
-        const formattedUsers = usersData.map((user: any, index: number) => ({
-          id: user.userID || index,
-          username: user.username || `Unknown User ${index + 1}`,
+        const formattedUsers = usersData.map((user: any) => ({
+          id: user.user_id || null, // Use the correct field name from the backend
+          username: user.username || "Unknown User",
           totalDebt: user.total_loan !== undefined ? user.total_loan : "N/A",
           remainingDebt:
             user.total_loan_remain !== undefined
@@ -54,6 +54,7 @@ export default function AdminHome() {
               : "N/A",
           risk: user.risk_level || "unknown",
         }));
+        console.log("Raw Users Data from Backend:", usersData);
 
         console.log("Formatted Users:", formattedUsers);
         setUsersData(formattedUsers);
@@ -99,7 +100,7 @@ export default function AdminHome() {
                   <tr key={user.id}>
                     <td className="p-2 border-b">
                       <Link
-                        href={`/AdminUserInfo/${user.id}`}
+                        href={`/AdminUserInfo?userID=${user.id}`}
                         className="text-blue-600 hover:underline"
                       >
                         {user.username}

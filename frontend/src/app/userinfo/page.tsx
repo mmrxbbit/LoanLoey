@@ -99,7 +99,7 @@ export default function UserInfo() {
   }
 
   return (
-    <div className="bg-gray-100 min-h-screen text-gray-800">
+    <div className="bg-gray-100 h-full text-gray-800">
       <div className="relative z-10">
         <NavBar />
       </div>
@@ -113,7 +113,7 @@ export default function UserInfo() {
         </h1>
       </div>
 
-      <div className="bg-white shadow-lg mx-auto mt-6 p-6 rounded-md max-w-2xl">
+      <div className="bg-white shadow-lg mx-auto mt-6 p-6 rounded-md max-w-7xl">
         <div className="gap-4 grid grid-cols-2">
           <div>
             <label className="block font-medium text-gray-600 text-sm">
@@ -222,8 +222,10 @@ export default function UserInfo() {
             className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
           />
         </div>
+      </div>
 
-        <div className="mt-4 text-end">
+      <div className="pb-7">
+        <div className="flex justify-end mt-3 mr-28">
           <button
             onClick={handleEdit}
             className="ml-2 text-blue-600 hover:underline"
@@ -232,7 +234,7 @@ export default function UserInfo() {
           </button>
         </div>
 
-        <div className="mt-2 text-center">
+        <div className="mt-1 text-center">
           <button
             onClick={handleLogout}
             className="bg-black hover:bg-gray-500 px-4 py-2 rounded-md text-white"
