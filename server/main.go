@@ -147,58 +147,46 @@ func (db *Database) Signup(userAccount UserAccount) error {
 
 // DeleteAccount deletes an account and all related information.
 // It handles both user and admin accounts.
-func (db *Database) DeleteAccount(accountID int) error {
-	var userID sql.NullInt64  // To handle nullable UserID.
-	var adminID sql.NullInt64 // To handle nullable AdminID.
+func (db *Database) DeleteAccount(userID int) error {
+	var accountID int // To hold the account ID associated with the given user ID.
 
-	// Check for UserID and AdminID associated with the AccountID.
-	err := db.QueryRow(`
-		SELECT 
-			(SELECT UserID FROM user WHERE AccountID = ?) AS UserID,
-			(SELECT AdminID FROM loansharkadmin WHERE AccountID = ?) AS AdminID
-	`, accountID, accountID).Scan(&userID, &adminID)
+	// Retrieve AccountID using the provided UserID.
+	err := db.QueryRow(`SELECT AccountID FROM user WHERE UserID = ?`, userID).Scan(&accountID)
 	if err != nil {
-		return fmt.Errorf("fetching UserID or AdminID for AccountID %d: %w", accountID, err)
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("no account found for UserID %d", userID)
+		}
+		return fmt.Errorf("error retrieving AccountID for UserID %d: %w", userID, err)
 	}
 
-	if userID.Valid { // Account belongs to a user.
-		// Check for pending loans.
-		var pendingLoans int
-		query := `SELECT COUNT(*) FROM loan WHERE UserID = ? AND Status = 'pending'`
-		err = db.QueryRow(query, userID.Int64).Scan(&pendingLoans)
-		if err != nil {
-			return fmt.Errorf("checking pending loans: %w", err)
-		}
-
-		if pendingLoans > 0 {
-			return fmt.Errorf("cannot delete account with pending loans")
-		}
-
-		// Delete payments related to the user's loans.
-		_, err = db.Exec(`DELETE FROM payment WHERE LoanID IN (SELECT LoanID FROM loan WHERE UserID = ?)`, userID.Int64)
-		if err != nil {
-			return fmt.Errorf("deleting payments: %w", err)
-		}
-
-		// Delete loans related to the user.
-		_, err = db.Exec(`DELETE FROM loan WHERE UserID = ?`, userID.Int64)
-		if err != nil {
-			return fmt.Errorf("deleting loans: %w", err)
-		}
-
-		// Delete the user from the user table.
-		_, err = db.Exec(`DELETE FROM user WHERE AccountID = ?`, accountID)
-		if err != nil {
-			return fmt.Errorf("deleting user: %w", err)
-		}
+	// Check for pending loans.
+	var pendingLoans int
+	query := `SELECT COUNT(*) FROM loan WHERE UserID = ? AND Status = 'pending'`
+	err = db.QueryRow(query, userID).Scan(&pendingLoans)
+	if err != nil {
+		return fmt.Errorf("checking pending loans: %w", err)
 	}
 
-	if adminID.Valid { // Account belongs to an admin.
-		// Delete admin-specific data.
-		_, err = db.Exec(`DELETE FROM loansharkadmin WHERE AccountID = ?`, accountID)
-		if err != nil {
-			return fmt.Errorf("deleting from admin table: %w", err)
-		}
+	if pendingLoans > 0 {
+		return fmt.Errorf("cannot delete account with pending loans")
+	}
+
+	// Delete payments related to the user's loans.
+	_, err = db.Exec(`DELETE FROM payment WHERE LoanID IN (SELECT LoanID FROM loan WHERE UserID = ?)`, userID)
+	if err != nil {
+		return fmt.Errorf("deleting payments: %w", err)
+	}
+
+	// Delete loans related to the user.
+	_, err = db.Exec(`DELETE FROM loan WHERE UserID = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("deleting loans: %w", err)
+	}
+
+	// Delete the user from the user table.
+	_, err = db.Exec(`DELETE FROM user WHERE UserID = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("deleting user: %w", err)
 	}
 
 	// Delete the account itself from the account table.
@@ -900,26 +888,31 @@ func main() {
 			return
 		}
 
-		accountIDStr := r.URL.Query().Get("accountID")
-		if accountIDStr == "" {
-			http.Error(w, "AccountID is required", http.StatusBadRequest)
+		// Parse userID from query parameters
+		userIDStr := r.URL.Query().Get("userID")
+		if userIDStr == "" {
+			http.Error(w, "UserID is required", http.StatusBadRequest)
 			return
 		}
 
-		accountID, err := strconv.Atoi(accountIDStr)
+		// Convert userID to integer
+		userID, err := strconv.Atoi(userIDStr)
 		if err != nil {
-			http.Error(w, "Invalid AccountID format", http.StatusBadRequest)
+			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
 			return
 		}
 
-		if err := database.DeleteAccount(accountID); err != nil {
+		// Call DeleteAccount with userID
+		if err := database.DeleteAccount(userID); err != nil {
 			http.Error(w, fmt.Sprintf("DeleteAccount failed: %v", err), http.StatusInternalServerError)
 			return
 		}
 
+		// Respond with success message
 		response := map[string]string{"message": "Account deleted successfully!"}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
+
 	})))
 
 	// HTTP route for user login

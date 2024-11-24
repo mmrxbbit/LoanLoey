@@ -134,23 +134,23 @@ export default function NavBar() {
 
     try {
       const response = await fetch(
-        `http://localhost:8080/deleteAccount?accountID=${userData.userId}`,
+        `http://localhost:8080/deleteAccount?userID=${userData.userId}`,
         {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            accountID: userData.userId, // Pass the logged-in user's account ID
-          }),
         }
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to delete account: ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.message || response.statusText;
+        throw new Error(`Failed to delete account: ${errorMessage}`);
       }
 
       Cookies.remove("userId");
+
       // Update userData to reflect a logged-out state
       setUserData({
         userId: null,

@@ -1,7 +1,7 @@
 "use client";
 
 import NavBar from "../../components/NavBar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import logo_white from "../../../public/logo_white.png";
 import loanshark from "../../../public/loanshark.jpg";
@@ -58,6 +58,30 @@ export default function Borrow() {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   };
 
+  // Update min datetime continuously
+  const [minDateTime, setMinDateTime] = useState("");
+  // Format the current date and time for the min attribute
+  const updateMinDateTime = () => {
+    const now = new Date();
+
+    // Get local time components
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`; // Format for datetime-local
+  };
+  // Continuously update the minDateTime state
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setMinDateTime(updateMinDateTime());
+    }, 1000);
+
+    return () => clearInterval(intervalId); // Cleanup on unmount
+  }, []);
+
   // Handle input change
   const handleAmountChange = (e) => {
     const value = parseInt(e.target.value);
@@ -69,11 +93,19 @@ export default function Borrow() {
   };
   const handleDateChange = (e) => {
     const selectedDate = e.target.value;
-    const formattedReturnDate = formatter(selectedDate);
-    setRequestData((prevState) => ({
-      ...prevState, // Keep the previous state values
-      returnDate: formattedReturnDate, // Update return date
-    }));
+    if (selectedDate < minDateTime) {
+      alert("You cannot select a time earlier than the current time.");
+      setRequestData((prevData) => ({
+        ...prevData,
+        returnDate: minDateTime,
+      }));
+    } else {
+      const formattedReturnDate = formatter(selectedDate);
+      setRequestData((prevState) => ({
+        ...prevState, // Keep the previous state values
+        returnDate: formattedReturnDate, // Update return date
+      }));
+    }
   };
 
   // Handle the submit button click
@@ -190,7 +222,7 @@ export default function Borrow() {
                 <input
                   type="datetime-local"
                   name="returnDate"
-                  min={new Date().toISOString().slice(0, 16)}
+                  min={minDateTime}
                   value={requestData.returnDate || ""}
                   onChange={handleDateChange}
                   required
