@@ -187,11 +187,10 @@ export default function Borrow() {
                 Return Date
               </label>
               <div className="col-span-3" inert={false}>
-                {/*<DateTimePicker name="date" onSetDate={handleDateChange} />*/}
                 <input
                   type="datetime-local"
                   name="returnDate"
-                  min="{{today()}}"
+                  min={new Date().toISOString().slice(0, 16)}
                   value={requestData.returnDate || ""}
                   onChange={handleDateChange}
                   required

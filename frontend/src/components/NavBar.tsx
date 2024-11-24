@@ -151,6 +151,14 @@ export default function NavBar() {
       }
 
       Cookies.remove("userId");
+      // Update userData to reflect a logged-out state
+      setUserData({
+        userId: null,
+        username: null,
+        debt: null,
+        credit: null,
+      });
+
       console.log("Account deleted successfully.");
     } catch (error) {
       console.error("Error deleting account:", error);
