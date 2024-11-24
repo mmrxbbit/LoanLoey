@@ -28,8 +28,7 @@ export default function NavBar() {
 
   useEffect(() => {
     async function fetchUserData() {
-      const userId = Cookies.get("userId");
-      if (!userId) {
+      if (!userData.userId) {
         setUserData({
           userId: null,
           username: null,
@@ -39,6 +38,7 @@ export default function NavBar() {
         setIsLoggedIn(false);
         return;
       }
+      console.log("user id from navbar: ", userData.userId);
 
       try {
         // Fetch user info
@@ -51,7 +51,7 @@ export default function NavBar() {
         const userInfo = await userInfoResponse.json();
         setUserData((prevState) => ({
           ...prevState, // Keep the previous state values
-          username: userInfo.first_name, // Update the username
+          username: userInfo.username, // Update the username
         }));
 
         // Fetch user credit
@@ -150,6 +150,7 @@ export default function NavBar() {
         throw new Error(`Failed to delete account: ${response.statusText}`);
       }
 
+      Cookies.remove("userId");
       console.log("Account deleted successfully.");
     } catch (error) {
       console.error("Error deleting account:", error);
@@ -159,7 +160,7 @@ export default function NavBar() {
 
     setTimeout(() => {
       setShowOverlay3(false); // Close overlay
-      router.push("/login"); // Replace with your target page path
+      router.push("/home"); // Replace with your target page path
     }, 2500); // 1 seconds = 1000 ms
   };
 
@@ -343,7 +344,7 @@ export default function NavBar() {
               <div className="flex flex-col justify-center gap-y-2 p-4">
                 <h1 className="font-semibold text-xl">Delete success.</h1>
                 <h1 className="font-semibold text-xl">
-                  Going back to login page.
+                  Going back to home page.
                 </h1>
               </div>
             </DialogPanel>

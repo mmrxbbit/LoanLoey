@@ -29,11 +29,12 @@ export default function LoginPage() {
         const roleData = await response.json();
 
         // Store userId in cookies using js-cookie
-        Cookies.set("userId", roleData.userId, {
+        Cookies.set("userId", roleData.UserID, {
           expires: 7,
           secure: true,
-          sameSite: "strict",
+          sameSite: "none",
         });
+        console.log("user id from login: ", Cookies.get("userId"));
 
         if (roleData.role === "admin") {
           router.push("/AdminHome");

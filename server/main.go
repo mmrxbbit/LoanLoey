@@ -281,16 +281,21 @@ func (db *Database) UpdateUserInfo(userID int, userAccount UserAccount) error {
 	return nil
 }
 
-// GetUserInfo retrieves user information by user ID
+// GetUserInfo retrieves user information by user ID, including username from the account table
 func (db *Database) GetUserInfo(userID int) (*UserAccount, error) {
 	var userAccount UserAccount
 
-	// Query to get user information, including bank details
-	query := `SELECT u.FirstName, u.LastName, u.IDCard, u.DOB, u.PhoneNo, u.Address, u.CreditScore, 
-                      u.BankName, u.BankAccNo 
-              FROM user u WHERE u.UserID = ?`
+	// Query to get user information, including username from the account table
+	query := `
+		SELECT u.FirstName, u.LastName, u.IDCard, u.DOB, u.PhoneNo, u.Address, u.CreditScore, 
+		       u.BankName, u.BankAccNo, a.Username
+		FROM user u
+		JOIN account a ON u.AccountID = a.AccountID
+		WHERE u.UserID = ?`
+
 	err := db.QueryRow(query, userID).Scan(&userAccount.FirstName, &userAccount.LastName, &userAccount.IDCard, &userAccount.DOB,
-		&userAccount.PhoneNo, &userAccount.Address, &userAccount.CreditScore, &userAccount.BankName, &userAccount.BankAccNo)
+		&userAccount.PhoneNo, &userAccount.Address, &userAccount.CreditScore, &userAccount.BankName, &userAccount.BankAccNo, &userAccount.Username,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("querying user info: %w", err)
 	}
