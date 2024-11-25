@@ -12,8 +12,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
-import DateTimePicker from "../../components/DateTimePicker";
-import { ZonedDateTime } from "@internationalized/date";
+import Cookies from "js-cookie";
 
 export default function Borrow() {
   const [showOverlay1, setShowOverlay1] = useState(false);
@@ -21,7 +20,7 @@ export default function Borrow() {
   const [message, setMessage] = useState("");
 
   const [requestData, setRequestData] = useState({
-    userId: 20,
+    userId: parseInt(Cookies.get("userId")),
     amount: 0,
     returnDate: null,
   });
@@ -35,15 +34,6 @@ export default function Borrow() {
   });
 
   const minAmount = 1000;
-
-  // Get the input element by name
-  var inputElement = document.getElementsByName("returnDate")[0];
-
-  // Ensure it's an HTMLInputElement before setting the 'min' attribute
-  if (inputElement instanceof HTMLInputElement) {
-    var today = new Date().toISOString().slice(0, 16); // Format as 'YYYY-MM-DDTHH:MM'
-    inputElement.min = today; // Set the 'min' attribute
-  }
 
   // Format date
   const formatter = (date) => {
@@ -60,21 +50,22 @@ export default function Borrow() {
 
   // Update min datetime continuously
   const [minDateTime, setMinDateTime] = useState("");
-  // Format the current date and time for the min attribute
-  const updateMinDateTime = () => {
-    const now = new Date();
-
-    // Get local time components
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-
-    return `${year}-${month}-${day}T${hours}:${minutes}`; // Format for datetime-local
-  };
-  // Continuously update the minDateTime state
   useEffect(() => {
+    const updateMinDateTime = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    // Set the minimum date-time initially
+    setMinDateTime(updateMinDateTime());
+
+    // Optionally, update the minDateTime periodically
     const intervalId = setInterval(() => {
       setMinDateTime(updateMinDateTime());
     }, 1000);
@@ -95,9 +86,10 @@ export default function Borrow() {
     const selectedDate = e.target.value;
     if (selectedDate < minDateTime) {
       alert("You cannot select a time earlier than the current time.");
+      const formattedMinDate = formatter(minDateTime);
       setRequestData((prevData) => ({
         ...prevData,
-        returnDate: minDateTime,
+        returnDate: formattedMinDate,
       }));
     } else {
       const formattedReturnDate = formatter(selectedDate);
@@ -115,7 +107,14 @@ export default function Borrow() {
       setMessage("You must borrow at least 1000");
       return; // Prevent oveylay from opening
     }
-
+    console.log("Request Data:", requestData);
+    console.log(
+      JSON.stringify({
+        user_id: requestData.userId,
+        initial_amount: requestData.amount,
+        due_date_time: requestData.returnDate,
+      })
+    );
     // Make an API request to check details for the loan
     try {
       const response = await fetch("http://localhost:8080/checkLoanDetails", {

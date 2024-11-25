@@ -10,6 +10,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
+import Cookies from "js-cookie";
 
 interface Props {
   id: number;
@@ -257,7 +258,7 @@ function DebtInfo(props: Props) {
 }
 
 export default function Debt() {
-  const userId = 20;
+  const userId = Cookies.get("userId");
   const [loanInfo, setLoanInfo] = useState<LoanResponse[] | null>(null);
 
   const updateLoanStatus = (index: number) => {

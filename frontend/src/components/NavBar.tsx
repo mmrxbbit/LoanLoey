@@ -24,9 +24,15 @@ export default function NavBar() {
 
   const [creditColor, setcreditColor] = useState("");
   const [canDelete, setDelete] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(userData.username));
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    if (!userData.userId) {
+      setIsInitialized(true); // No user, component ready
+      return;
+    }
+
     async function fetchUserData() {
       if (!userData.userId) {
         setUserData({
@@ -36,6 +42,7 @@ export default function NavBar() {
           credit: null,
         });
         setIsLoggedIn(false);
+        setIsInitialized(true); // No user, component ready
         return;
       }
       console.log("user id from navbar: ", userData.userId);
@@ -81,7 +88,7 @@ export default function NavBar() {
         }));
 
         // Update derived states
-        setIsLoggedIn(!!userInfo.first_name);
+        setIsLoggedIn(true);
 
         // Set credit color
         if (userCredit.credit_level === "green") {
@@ -95,6 +102,8 @@ export default function NavBar() {
         setDelete(userDebt.totalLoan > 0 ? false : true);
       } catch (error) {
         console.error("Error fetching user data:", error);
+      } finally {
+        setIsInitialized(true); // Ensure loading state clears
       }
     }
 
@@ -172,10 +181,13 @@ export default function NavBar() {
     }, 2500); // 1 seconds = 1000 ms
   };
 
-  // close overlay 3
-  const closeOverlay3 = () => {
-    setShowOverlay2(false);
-  };
+  if (!isInitialized) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <span>Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -337,7 +349,7 @@ export default function NavBar() {
         </div>
       </Dialog>
 
-      <Dialog open={showOverlay3} onClose={closeOverlay3}>
+      <Dialog open={showOverlay3} onClose={() => setShowOverlay3(false)}>
         <DialogBackdrop
           transition
           className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[enter]:ease-out data-[leave]:ease-in"

@@ -16,15 +16,21 @@ export default function Footer() {
         <div className="w-1/4 flex flex-col ml-24">
           <h4 className="font-semibold text-xl">Quick Links</h4>
           <ul className="py-4 pl-2 flex flex-col gap-y-2 text-[#9F6D3A] font-medium">
-            <Link href="/home" className="hover:underline">
-              <li>Home</li>
-            </Link>
-            <Link href="/AboutUs" className="hover:underline">
-              <li>About us</li>
-            </Link>
-            <Link href="/contact" className="hover:underline">
-              <li>Contact</li>
-            </Link>
+            <li>
+              <Link href="/home" className="hover:underline">
+                Home
+              </Link>
+            </li>
+            <li>
+              <Link href="/AboutUs" className="hover:underline">
+                About us
+              </Link>
+            </li>
+            <li>
+              <Link href="/contact" className="hover:underline">
+                Contact
+              </Link>
+            </li>
           </ul>
         </div>
         <div className="w-1/3 flex flex-col">

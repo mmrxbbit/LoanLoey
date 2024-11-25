@@ -4,6 +4,7 @@ import Footer from "../../components/Footer";
 import Image from "next/image";
 import qoute1 from "../../../public/quote1.svg";
 import qoute2 from "../../../public/quote2.svg";
+import backgroudimg from "../../../public/img1.png";
 
 export default function Home() {
   return (
@@ -11,8 +12,8 @@ export default function Home() {
       <NavBar />
       <main className="flex-grow bg-gray-100">
         <section className="relative bg-black w-full h-[400px]">
-          <img
-            src="/img1.png"
+          <Image
+            src={backgroudimg}
             alt="Background Image"
             className="absolute inset-0 opacity-50 w-full h-full object-cover"
           />
