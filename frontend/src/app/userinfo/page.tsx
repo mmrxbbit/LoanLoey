@@ -295,6 +295,7 @@ export default function UserInfo() {
                   type="date"
                   value={editData?.dob}
                   onChange={(e) => handleEditChange("dob", e.target.value)}
+                  max={new Date().toISOString().split("T")[0]} // Sets today's date as the maximum
                   className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
                 />
               </div>
@@ -306,6 +307,9 @@ export default function UserInfo() {
                   type="text"
                   value={editData?.phone_no}
                   onChange={(e) => handleEditChange("phone_no", e.target.value)}
+                  maxLength={10}
+                  pattern="\d{10}"
+                  title="Phone No. format is incorrect"
                   className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
                 />
               </div>
@@ -358,6 +362,9 @@ export default function UserInfo() {
                   onChange={(e) =>
                     handleEditChange("bank_acc_no", e.target.value)
                   }
+                  maxLength={10} // Limits input to 13 characters
+                  pattern="\d{10}" // Ensures exactly 13 digits
+                  title="Bank Account No. format is incorrect"
                   className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
                 />
               </div>

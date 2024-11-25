@@ -38,7 +38,7 @@ export default function Signup() {
       setResponseMessage("Passwords do not match.");
       return;
     }
-
+    console.log(formData);
     try {
       const res = await fetch("http://localhost:8080/signup", {
         method: "POST",
@@ -59,14 +59,14 @@ export default function Signup() {
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setResponseMessage(data.message);
-        router.push("/home"); // Navigate to home page on successful signup
-      } else {
-        const errorData = await res.json();
-        setResponseMessage(errorData.message || "Signup failed.");
+      const responseData = await res.json();
+      if (!res.ok) {
+        setResponseMessage(responseData.message || "An error occurred.");
+        return;
       }
+
+      setResponseMessage(responseData.message || "Signup successful.");
+      router.push("/home"); // Navigate to home after signup successful
     } catch (error) {
       console.error("Error:", error);
       setResponseMessage("An error occurred. Please try again.");
@@ -104,6 +104,9 @@ export default function Signup() {
             value={formData.id_card}
             onChange={handleChange}
             required
+            maxLength={13} // Limits input to 13 characters
+            pattern="\d{13}" // Ensures exactly 13 digits
+            title="Citizen ID format is incorrect"
             className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
           />
           <input
@@ -113,6 +116,9 @@ export default function Signup() {
             value={formData.phone_no}
             onChange={handleChange}
             required
+            maxLength={10}
+            pattern="\d{10}"
+            title="Phone No. format is incorrect"
             className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
           />
 
@@ -122,6 +128,7 @@ export default function Signup() {
             value={formData.dob}
             onChange={handleChange}
             required
+            max={new Date().toISOString().split("T")[0]} // Sets today's date as the maximum
             className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
           />
 
@@ -164,6 +171,9 @@ export default function Signup() {
             value={formData.bank_acc_no}
             onChange={handleChange}
             required
+            maxLength={10} // Limits input to 13 characters
+            pattern="\d{10}" // Ensures exactly 13 digits
+            title="Bank Account No. format is incorrect"
             className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
           />
           <input
