@@ -59,14 +59,14 @@ export default function Signup() {
         }),
       });
 
-      const responseData = await res.json();
-      if (!res.ok) {
-        setResponseMessage(responseData.message || "An error occurred.");
-        return;
+      if (res.ok) {
+        const data = await res.json();
+        setResponseMessage(data.message);
+        router.push("/home"); // Navigate to home page on successful signup
+      } else {
+        const errorText = await res.text();
+        setResponseMessage(errorText || "Signup failed.");
       }
-
-      setResponseMessage(responseData.message || "Signup successful.");
-      router.push("/home"); // Navigate to home after signup successful
     } catch (error) {
       console.error("Error:", error);
       setResponseMessage("An error occurred. Please try again.");
