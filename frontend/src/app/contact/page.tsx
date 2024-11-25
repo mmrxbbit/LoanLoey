@@ -55,10 +55,34 @@ export default function ContactPage() {
           </p>
           <div className="flex space-x-4 mb-8">
             {/* Icons can be added here */}
-            <div className="bg-gray-400 rounded-full w-10 h-10"></div>
-            <div className="bg-gray-400 rounded-full w-10 h-10"></div>
-            <div className="bg-gray-400 rounded-full w-10 h-10"></div>
-            <div className="bg-gray-400 rounded-full w-10 h-10"></div>
+            <div className="flex justify-center items-center bg-white rounded-full w-10 h-10">
+              <img
+                src="facebook.png"
+                alt="facebook"
+                className="w-12 h-12 object-cover ounded-full"
+              />
+            </div>
+            <div className="flex justify-center items-center bg-white rounded-full w-10 h-10">
+              <img
+                src="instagram.png"
+                alt="instagram"
+                className="w-12 h-12 object-cover ounded-full"
+              />
+            </div>
+            <div className="flex justify-center items-center bg-white rounded-full w-10 h-10">
+              <img
+                src="twitter.png"
+                alt="twitter"
+                className="w-12 h-12 object-cover ounded-full"
+              />
+            </div>
+            <div className="flex justify-center items-center bg-white rounded-full w-10 h-10">
+              <img
+                src="tiktok.png"
+                alt="tiktok"
+                className="w-12 h-12 object-cover ounded-full"
+              />
+            </div>
           </div>
 
           <h2 className="mb-4 font-bold text-2xl">Feedback Center</h2>

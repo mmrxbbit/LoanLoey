@@ -10,7 +10,21 @@ export default function UserInfo() {
   const [showEditOverlay, setShowEditOverlay] = useState(false);
   const [editData, setEditData] = useState<any | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Partial<UserData>>(
+    {}
+  );
   const router = useRouter();
+
+  interface UserData {
+    first_name: string;
+    last_name: string;
+    id_card: string;
+    dob: string;
+    phone_no: string;
+    address: string;
+    bank_name: string;
+    bank_acc_no: string;
+  }
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -44,8 +58,9 @@ export default function UserInfo() {
     setShowEditOverlay(true);
   };
 
-  const handleEditChange = (field: string, value: string) => {
-    setEditData((prev: any) => ({ ...prev, [field]: value }));
+  const handleEditChange = (field: keyof UserData, value: string) => {
+    setEditData((prev) => ({ ...prev, [field]: value }));
+    setValidationErrors((prev) => ({ ...prev, [field]: undefined })); // Clear the error for the field
   };
 
   const handleCancelEdit = () => {
@@ -55,12 +70,58 @@ export default function UserInfo() {
 
   const handleSaveEdit = async () => {
     try {
+      // Basic validation
+      const errors: Partial<UserData> = {};
+
+      // Validate First Name
+      if (!editData?.first_name || editData.first_name.trim() === "") {
+        errors.first_name = "First name is required.";
+      }
+
+      // Validate Last Name
+      if (!editData?.last_name || editData.last_name.trim() === "") {
+        errors.last_name = "Last name is required.";
+      }
+
+      // Validate Citizen ID (13 digits)
+      if (!/^\d{13}$/.test(editData?.id_card)) {
+        errors.id_card = "Citizen ID must be exactly 13 digits.";
+      }
+
+      // Validate Phone Number (10 digits)
+      if (!/^\d{10}$/.test(editData?.phone_no)) {
+        errors.phone_no = "Phone number must be exactly 10 digits.";
+      }
+
+      // Validate Address
+      if (!editData?.address || editData.address.trim() === "") {
+        errors.address = "Address is required.";
+      }
+
+      // Validate Birth Date
+      if (!editData?.dob || editData.dob === "") {
+        errors.dob = "Birth Date is required.";
+      }
+
+      // Validate Bank Account Number (10 digits)
+      if (!/^\d{10}$/.test(editData?.bank_acc_no)) {
+        errors.bank_acc_no = "Bank account number must be exactly 10 digits.";
+      }
+
+      // If there are validation errors, log them and return
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
+        return;
+      }
+
       const userID = Cookies.get("userId"); // Retrieve userId again
       if (!userID) {
         console.error("UserID not found in cookies");
         return;
       }
+
       console.log("Payload being sent:", editData);
+
       const response = await fetch(
         `http://localhost:8080/updateUserInfo?userID=${userID}`,
         {
@@ -69,16 +130,20 @@ export default function UserInfo() {
           body: JSON.stringify(editData),
         }
       );
+
       console.log("Response status:", response.status);
+
       if (!response.ok) {
         const errorText = await response.text(); // Retrieve error message from backend
         console.error("Backend error:", errorText);
         throw new Error("Failed to update user data");
       }
+
       const data = await response.json();
       console.log("Update successful:", data.message);
-      setUserData(editData);
-      setShowEditOverlay(false);
+
+      setUserData(editData); // Update the state with the new data
+      setShowEditOverlay(false); // Close the overlay
     } catch (error) {
       console.error("Error updating user data:", error);
     }
@@ -105,8 +170,8 @@ export default function UserInfo() {
       </div>
 
       <div
-        className="relative flex justify-center items-center bg-cover bg-center w-full h-64"
-        style={{ backgroundImage: "url('/img5.png')" }}
+        className="relative flex justify-center items-center bg-cover bg-center shadow-lg w-full"
+        style={{ backgroundImage: "url('/img5.png')", height: 400 }}
       >
         <h1 className="px-4 py-2 font-bold text-7xl text-white">
           Your Information
@@ -257,11 +322,19 @@ export default function UserInfo() {
                 <input
                   type="text"
                   value={editData?.first_name}
+                  required
                   onChange={(e) =>
                     handleEditChange("first_name", e.target.value)
                   }
-                  className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
+                  className={`block border-gray-300 shadow-sm mt-1 rounded-md w-full ${
+                    validationErrors.first_name ? "border-red-500" : ""
+                  }`}
                 />
+                {validationErrors.first_name && (
+                  <p className="mt-1 text-red-500 text-xs">
+                    {validationErrors.first_name}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-medium text-gray-600 text-sm">
@@ -270,11 +343,19 @@ export default function UserInfo() {
                 <input
                   type="text"
                   value={editData?.last_name}
+                  required
                   onChange={(e) =>
                     handleEditChange("last_name", e.target.value)
                   }
-                  className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
+                  className={`block border-gray-300 shadow-sm mt-1 rounded-md w-full ${
+                    validationErrors.last_name ? "border-red-500" : ""
+                  }`}
                 />
+                {validationErrors.last_name && (
+                  <p className="mt-1 text-red-500 text-xs">
+                    {validationErrors.last_name}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-medium text-gray-600 text-sm">
@@ -284,8 +365,17 @@ export default function UserInfo() {
                   type="text"
                   value={editData?.id_card}
                   onChange={(e) => handleEditChange("id_card", e.target.value)}
-                  className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
+                  required
+                  maxLength={13} // Limits input to 13 characters
+                  className={`block border-gray-300 shadow-sm mt-1 rounded-md w-full ${
+                    validationErrors.id_card ? "border-red-500" : ""
+                  }`}
                 />
+                {validationErrors.id_card && (
+                  <p className="mt-1 text-red-500 text-xs">
+                    {validationErrors.id_card}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-medium text-gray-600 text-sm">
@@ -294,10 +384,18 @@ export default function UserInfo() {
                 <input
                   type="date"
                   value={editData?.dob}
+                  required
                   onChange={(e) => handleEditChange("dob", e.target.value)}
                   max={new Date().toISOString().split("T")[0]} // Sets today's date as the maximum
-                  className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
+                  className={`block border-gray-300 shadow-sm mt-1 rounded-md w-full ${
+                    validationErrors.dob ? "border-red-500" : ""
+                  }`}
                 />
+                {validationErrors.dob && (
+                  <p className="mt-1 text-red-500 text-xs">
+                    {validationErrors.dob}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-medium text-gray-600 text-sm">
@@ -306,13 +404,20 @@ export default function UserInfo() {
                 <input
                   type="text"
                   value={editData?.phone_no}
+                  required
                   onChange={(e) => handleEditChange("phone_no", e.target.value)}
                   maxLength={10}
-                  pattern="\d{10}"
-                  title="Phone No. format is incorrect"
-                  className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
+                  className={`block border-gray-300 shadow-sm mt-1 rounded-md w-full ${
+                    validationErrors.phone_no ? "border-red-500" : ""
+                  }`}
                 />
+                {validationErrors.phone_no && (
+                  <p className="mt-1 text-red-500 text-xs">
+                    {validationErrors.phone_no}
+                  </p>
+                )}
               </div>
+
               <div>
                 <label className="block font-medium text-gray-600 text-sm">
                   Address
@@ -320,9 +425,17 @@ export default function UserInfo() {
                 <input
                   type="text"
                   value={editData?.address}
+                  required
                   onChange={(e) => handleEditChange("address", e.target.value)}
-                  className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
+                  className={`block border-gray-300 shadow-sm mt-1 rounded-md w-full ${
+                    validationErrors.address ? "border-red-500" : ""
+                  }`}
                 />
+                {validationErrors.address && (
+                  <p className="mt-1 text-red-500 text-xs">
+                    {validationErrors.address}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-medium text-gray-600 text-sm">
@@ -362,11 +475,16 @@ export default function UserInfo() {
                   onChange={(e) =>
                     handleEditChange("bank_acc_no", e.target.value)
                   }
-                  maxLength={10} // Limits input to 13 characters
-                  pattern="\d{10}" // Ensures exactly 13 digits
-                  title="Bank Account No. format is incorrect"
-                  className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
+                  maxLength={10} // Limits input to 10 characters
+                  className={`block border-gray-300 shadow-sm mt-1 rounded-md w-full ${
+                    validationErrors.bank_acc_no ? "border-red-500" : ""
+                  }`}
                 />
+                {validationErrors.bank_acc_no && (
+                  <p className="mt-1 text-red-500 text-xs">
+                    {validationErrors.bank_acc_no}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -379,7 +497,7 @@ export default function UserInfo() {
               </button>
               <button
                 onClick={handleSaveEdit}
-                className="bg-blue-600 hover:bg-blue-800 px-4 py-2 rounded-md text-white"
+                className="bg-[#cfa464] hover:bg-[#bd8e48] px-4 py-2 rounded-md text-white"
               >
                 Save
               </button>
