@@ -74,19 +74,6 @@ export default function NavBar() {
           credit: userCredit.credit_level, // Update the credit
         }));
 
-        // Fetch user total debt
-        const userDebtResponse = await fetch(
-          `http://localhost:8080/getUserTotalLoan?userID=${userData.userId}`
-        );
-        if (!userDebtResponse.ok) {
-          throw new Error(`HTTP error! status: ${userDebtResponse.status}`);
-        }
-        const userDebt = await userDebtResponse.json();
-        setUserData((prevState) => ({
-          ...prevState, // Keep the previous state values
-          debt: userDebt.totalLoan, // Update the total loan
-        }));
-
         // Update derived states
         setIsLoggedIn(true);
 
@@ -98,8 +85,6 @@ export default function NavBar() {
         } else {
           setcreditColor("bg-red-600");
         }
-
-        setDelete(userDebt.totalLoan > 0 ? false : true);
       } catch (error) {
         console.error("Error fetching user data:", error);
       } finally {
@@ -118,10 +103,31 @@ export default function NavBar() {
   const router = useRouter();
 
   // Handle the delete button click
-  const openOverlay1 = (event) => {
+  const openOverlay1 = async (event) => {
     event.preventDefault(); // Prevent form submission
     setDropdownOpen(false); // Close the dropdown
     setShowOverlay1(true);
+
+    try {
+      // Fetch user total debt
+      const userDebtResponse = await fetch(
+        `http://localhost:8080/getUserTotalLoan?userID=${userData.userId}`
+      );
+      if (!userDebtResponse.ok) {
+        throw new Error(`HTTP error! status: ${userDebtResponse.status}`);
+      }
+      const userDebt = await userDebtResponse.json();
+      setUserData((prevState) => ({
+        ...prevState, // Keep the previous state values
+        debt: userDebt.totalLoan, // Update the total loan
+      }));
+
+      setDelete(userDebt.totalLoan > 0 ? false : true);
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    } finally {
+      setIsInitialized(true); // Ensure loading state clears
+    }
   };
 
   // close overlay 1 open overlay 2 or 3
