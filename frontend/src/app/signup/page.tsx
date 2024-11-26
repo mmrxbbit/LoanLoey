@@ -166,7 +166,7 @@ export default function Signup() {
               onChange={handleChange}
               required
               max={new Date().toISOString().split("T")[0]} // Sets today's date as the maximum
-              className="block border-gray-300 px-4 pt-3 pb-1 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
             />
             <label
               htmlFor="dob"
@@ -201,7 +201,7 @@ export default function Signup() {
             value={formData.bank_name}
             onChange={handleChange}
             required
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            className="border-gray-300 px-4 py-3 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
           >
             <option value="" disabled>
               Select Bank
