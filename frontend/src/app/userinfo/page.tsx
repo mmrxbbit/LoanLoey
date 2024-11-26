@@ -275,18 +275,6 @@ export default function UserInfo() {
             className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
           />
         </div>
-
-        <div className="mt-4">
-          <label className="block font-medium text-gray-600 text-sm">
-            Credit Score
-          </label>
-          <input
-            type="text"
-            value={userData.credit_score}
-            readOnly
-            className="block border-gray-300 shadow-sm mt-1 rounded-md w-full"
-          />
-        </div>
       </div>
 
       <div className="pb-7">
