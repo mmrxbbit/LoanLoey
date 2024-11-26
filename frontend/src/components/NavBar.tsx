@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { Dialog, DialogBackdrop, DialogPanel } from "@headlessui/react";
 import Cookies from "js-cookie";
+import { user } from "@nextui-org/theme";
 
 export default function NavBar() {
   const PageName = [
@@ -119,10 +120,10 @@ export default function NavBar() {
       const userDebt = await userDebtResponse.json();
       setUserData((prevState) => ({
         ...prevState, // Keep the previous state values
-        debt: userDebt.totalLoan, // Update the total loan
+        debt: userDebt.total_loan, // Update the total loan
       }));
 
-      setDelete(userDebt.totalLoan > 0 ? false : true);
+      setDelete(userDebt.total_loan > 0 ? false : true);
     } catch (error) {
       console.error("Error fetching user data:", error);
     } finally {
@@ -134,6 +135,7 @@ export default function NavBar() {
   const confirmOverlay1 = (event) => {
     event.preventDefault();
     setShowOverlay1(false);
+    setDelete(userData.debt > 0 ? false : true);
     canDelete ? openOverlay3(event) : setShowOverlay2(true);
   };
 
