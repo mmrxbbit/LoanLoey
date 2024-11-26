@@ -171,7 +171,7 @@ export default function AdminUserInfo() {
 
         <div className="mt-4">
           <label className="block font-medium text-gray-600">
-            Credit Score
+            Risk Level Score
           </label>
           <input
             type="text"

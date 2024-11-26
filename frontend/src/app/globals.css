@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+input:focus + label,
+input:not(:placeholder-shown) + label {
+  top: -0.5rem; /* Moves the label up */
+  font-size: 0.75rem; /* Shrinks the label text */
+  color: #3b82f6; /* Highlights the label text */
+}

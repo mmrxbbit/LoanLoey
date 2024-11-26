@@ -68,55 +68,95 @@ export default function AdminSignup() {
 
         {/* Signup Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            name="first_name"
-            placeholder="First Name"
-            value={formData.first_name}
-            onChange={handleChange}
-            required
-            className="block mt-1 px-4 py-2 border focus:border-black rounded-md w-full focus:outline-none"
-          />
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="first_name"
+              placeholder=" "
+              value={formData.first_name}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="first_name"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              First Name
+            </label>
+          </div>
 
-          <input
-            type="text"
-            name="last_name"
-            placeholder="Last Name"
-            value={formData.last_name}
-            onChange={handleChange}
-            required
-            className="block mt-1 px-4 py-2 border focus:border-black rounded-md w-full focus:outline-none"
-          />
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="last_name"
+              placeholder=" "
+              value={formData.last_name}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="last_name"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Last Name
+            </label>
+          </div>
 
-          <input
-            type="text"
-            name="username"
-            placeholder="Username"
-            value={formData.username}
-            onChange={handleChange}
-            required
-            className="block mt-1 px-4 py-2 border focus:border-black rounded-md w-full focus:outline-none"
-          />
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="username"
+              placeholder=" "
+              value={formData.username}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="username"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Username
+            </label>
+          </div>
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            className="block mt-1 px-4 py-2 border focus:border-black rounded-md w-full focus:outline-none"
-          />
+          <div className="relative w-full">
+            <input
+              type="password"
+              name="password"
+              placeholder=" "
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="password"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Password
+            </label>
+          </div>
 
-          <input
-            type="password"
-            name="confirmPassword"
-            placeholder="Confirm Password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            required
-            className="block mt-1 px-4 py-2 border focus:border-black rounded-md w-full focus:outline-none"
-          />
+          <div className="relative w-full">
+            <input
+              type="password"
+              name="confirmPassword"
+              placeholder=" "
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="confirmPassword"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Confirm Password
+            </label>
+          </div>
 
           <button
             type="submit"

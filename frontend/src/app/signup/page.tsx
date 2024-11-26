@@ -79,68 +79,122 @@ export default function Signup() {
         <h2 className="mb-6 font-semibold text-3xl text-center">Sign up</h2>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            name="first_name"
-            placeholder="First name"
-            value={formData.first_name}
-            onChange={handleChange}
-            required
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
-          <input
-            type="text"
-            name="last_name"
-            placeholder="Last name"
-            value={formData.last_name}
-            onChange={handleChange}
-            required
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
-          <input
-            type="text"
-            name="id_card"
-            placeholder="Citizen ID"
-            value={formData.id_card}
-            onChange={handleChange}
-            required
-            maxLength={13} // Limits input to 13 characters
-            pattern="\d{13}" // Ensures exactly 13 digits
-            title="Citizen ID format is incorrect"
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
-          <input
-            type="text"
-            name="phone_no"
-            placeholder="Phone no."
-            value={formData.phone_no}
-            onChange={handleChange}
-            required
-            maxLength={10}
-            pattern="\d{10}"
-            title="Phone No. format is incorrect"
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="first_name"
+              placeholder=" "
+              value={formData.first_name}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="first_name"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              First Name
+            </label>
+          </div>
 
-          <input
-            type="date"
-            name="dob"
-            value={formData.dob}
-            onChange={handleChange}
-            required
-            max={new Date().toISOString().split("T")[0]} // Sets today's date as the maximum
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="last_name"
+              placeholder=" "
+              value={formData.last_name}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="last_name"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Last Name
+            </label>
+          </div>
 
-          <input
-            type="text"
-            name="address"
-            placeholder="Address"
-            value={formData.address}
-            onChange={handleChange}
-            required
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="id_card"
+              placeholder=" "
+              value={formData.id_card}
+              onChange={handleChange}
+              required
+              maxLength={13} // Limits input to 13 characters
+              pattern="\d{13}" // Ensures exactly 13 digits
+              title="Citizen ID format is incorrect"
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="id_card"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Citizen ID
+            </label>
+          </div>
+
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="phone_no"
+              placeholder=" "
+              value={formData.phone_no}
+              onChange={handleChange}
+              required
+              maxLength={10}
+              pattern="\d{10}"
+              title="Phone No. format is incorrect"
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="phone_no"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Phone No
+            </label>
+          </div>
+
+          <div className="relative w-full">
+            <input
+              type="date"
+              name="dob"
+              placeholder=" "
+              value={formData.dob}
+              onChange={handleChange}
+              required
+              max={new Date().toISOString().split("T")[0]} // Sets today's date as the maximum
+              className="block border-gray-300 px-4 pt-3 pb-1 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="dob"
+              className={`absolute left-4 top-3 text-gray-400 text-sm transition-all duration-200 ease-in-out bg-white px-1 ${
+                formData.dob ? "-top-2 text-blue-500 text-xs" : ""
+              }`}
+            >
+              Birth Date
+            </label>
+          </div>
+
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="address"
+              placeholder=" "
+              value={formData.address}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="address"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Address
+            </label>
+          </div>
 
           <select
             name="bank_name"
@@ -164,45 +218,80 @@ export default function Signup() {
             <option value="Trust Bank">Trust Bank</option>
           </select>
 
-          <input
-            type="text"
-            name="bank_acc_no"
-            placeholder="Bank Account No."
-            value={formData.bank_acc_no}
-            onChange={handleChange}
-            required
-            maxLength={10} // Limits input to 13 characters
-            pattern="\d{10}" // Ensures exactly 13 digits
-            title="Bank Account No. format is incorrect"
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
-          <input
-            type="text"
-            name="username"
-            placeholder="Username"
-            value={formData.username}
-            onChange={handleChange}
-            required
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
-          <input
-            type="password"
-            name="confirmPassword"
-            placeholder="Confirm password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            required
-            className="border-gray-300 px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
-          />
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="bank_acc_no"
+              placeholder=" "
+              value={formData.bank_acc_no}
+              onChange={handleChange}
+              required
+              maxLength={10} // Limits input to 13 characters
+              pattern="\d{10}" // Ensures exactly 13 digits
+              title="Bank Account No. format is incorrect"
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="bank_acc_no"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Bank Account No.
+            </label>
+          </div>
+
+          <div className="relative w-full">
+            <input
+              type="text"
+              name="username"
+              placeholder=" "
+              value={formData.username}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="username"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Username
+            </label>
+          </div>
+
+          <div className="relative w-full">
+            <input
+              type="password"
+              name="password"
+              placeholder=" "
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="password"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Password
+            </label>
+          </div>
+
+          <div className="relative w-full">
+            <input
+              type="password"
+              name="confirmPassword"
+              placeholder=" "
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              required
+              className="block border-gray-300 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 w-full text-black focus:outline-none"
+            />
+            <label
+              htmlFor="confirmPassword"
+              className="top-4 left-3 absolute bg-white px-1 text-gray-400 text-sm transition-all duration-200 ease-in-out"
+            >
+              Confirm Password
+            </label>
+          </div>
 
           <button
             type="submit"

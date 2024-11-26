@@ -121,7 +121,11 @@ export default function AdminHome() {
                           : "text-yellow-500"
                       }`}
                     >
-                      {user.risk}
+                      {user.risk === "red"
+                        ? "bad"
+                        : user.risk === "green"
+                        ? "good"
+                        : "ok"}
                     </td>
                   </tr>
                 ))}
