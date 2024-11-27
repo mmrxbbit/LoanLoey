@@ -93,7 +93,7 @@ export default function NavBar() {
       }
     }
 
-    fetchUserData();
+    !!userData.userId ? fetchUserData() : setIsInitialized(true);
   }, [userData.userId]);
 
   const [showOverlay1, setShowOverlay1] = useState(false);
