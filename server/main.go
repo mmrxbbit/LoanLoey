@@ -790,6 +790,8 @@ func insertPayment(db *Database) http.HandlerFunc {
 }
 
 
+
+
 func handlePaymentApproval(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received request to approve/reject payment for LoanID: %s", r.URL.Query().Get("loanID"))
@@ -889,22 +891,13 @@ func CheckAdminPassword(db *Database, password string) (bool, error) {
 		return false, fmt.Errorf("querying admin password: %w", err)
 	}
 
-	// Encrypt the provided password before comparing
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return false, fmt.Errorf("hashing provided password: %w", err)
-	}
-
-	// Compare the encrypted provided password with the stored hash
-	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), hashedPassword); err != nil {
-		fmt.Println("Provided password (hashed):", string(hashedPassword))
-		fmt.Println("Stored hash:", storedHash)
+	// Compare the provided password directly with the stored hash
+	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
 		return false, nil // Password does not match
 	}
 
 	return true, nil // Password matches
 }
-
 
 
 // Enable CORS
