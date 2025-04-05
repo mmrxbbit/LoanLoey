@@ -708,9 +708,9 @@ func confirmPaymentDetails(db *Database) http.HandlerFunc {
 	}
 }
 
-func makePayment(db *Database) http.HandlerFunc {
+func insertPayment(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request to make payment for LoanID: %s", r.URL.Query().Get("loanID"))
+		log.Printf("Received request to insert payment for LoanID: %s", r.URL.Query().Get("loanID"))
 
 		// Check if the request method is POST
 		if r.Method != http.MethodPost {
@@ -732,6 +732,26 @@ func makePayment(db *Database) http.HandlerFunc {
 			return
 		}
 
+		// Query to retrieve loan due date
+		query := `SELECT Duedate FROM loan WHERE LoanID = ?`
+		var dueDateStr string
+		err = db.QueryRow(query, loanID).Scan(&dueDateStr)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "Loan not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, fmt.Sprintf("Error querying loan due date: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Parse the due date
+		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error parsing due date: %v", err), http.StatusInternalServerError)
+			return
+		}
+
 		// Get current Thai time
 		tz, err := time.LoadLocation("Asia/Bangkok")
 		if err != nil {
@@ -741,21 +761,7 @@ func makePayment(db *Database) http.HandlerFunc {
 		dopayment := time.Now().In(tz)
 		fmt.Println("dopayment: ", dopayment)
 
-		// Query to get the due date and loan status
-		var dueDate time.Time
-		var loanStatus string
-		query := `SELECT Duedate, Status FROM loan WHERE LoanID = ?`
-		var dueDateStr string
-
-		db.QueryRow(query, loanID).Scan(&dueDateStr, &loanStatus)
-		dueDate, err = time.Parse("2006-01-02 15:04:05", dueDateStr)
-		fmt.Println("duedate: ", dueDate)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Parsing due date: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		// Determine the payment status
+		// Determine payment status
 		status := "intime"
 		if dopayment.Year() > dueDate.Year() ||
 			(dopayment.Year() == dueDate.Year() && dopayment.Month() > dueDate.Month()) ||
@@ -765,48 +771,88 @@ func makePayment(db *Database) http.HandlerFunc {
 			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() == dueDate.Day() && dopayment.Hour() == dueDate.Hour() && dopayment.Minute() == dueDate.Minute() && dopayment.Second() > dueDate.Second()) {
 			status = "late"
 		}
-		//fmt.Println("status", dopayment,dueDate,status)
 
 		// Insert the payment record into the payment table
-		_, err = db.Exec(`INSERT INTO payment (LoanID, DOPayment, Status) VALUES (?, ?, ?)`, loanID, dopayment.Format("2006-01-02 15:04:05"), status)
+		_, err = db.Exec(`INSERT INTO payment (LoanID, DOPayment, Status, CheckedStatus) VALUES (?, ?, ?, ?)`, loanID, dopayment.Format("2006-01-02 15:04:05"), status, "waiting")
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error inserting payment record: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		// Update the loan status to "complete"
-		_, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Error updating loan status: %v", err), http.StatusInternalServerError)
+		// Prepare a success response
+		response := map[string]string{
+			"message": "Payment inserted and status set to waiting",
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
+
+func handlePaymentApproval(db *Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Received request to approve/reject payment for LoanID: %s", r.URL.Query().Get("loanID"))
+
+		// Check if the request method is POST
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
-		// If the payment is late, increment the user's credit score
-		if status == "late" {
-			var userID int
-			err = db.QueryRow(`SELECT UserID FROM loan WHERE LoanID = ?`, loanID).Scan(&userID)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Error fetching UserID: %v", err), http.StatusInternalServerError)
-				return
-			}
+		// Retrieve LoanID and the action (accept/reject) from the query parameters
+		loanIDStr := r.URL.Query().Get("loanID")
+		action := r.URL.Query().Get("action")
+		if loanIDStr == "" || action == "" {
+			http.Error(w, "LoanID and action are required", http.StatusBadRequest)
+			return
+		}
 
-			_, err = db.Exec(`UPDATE user SET CreditScore = CreditScore + 1 WHERE UserID = ?`, userID)
+		// Convert LoanID to integer
+		loanID, err := strconv.Atoi(loanIDStr)
+		if err != nil {
+			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
+			return
+		}
+
+		// Check if action is valid (accept/reject)
+		if action != "accept" && action != "reject" {
+			http.Error(w, "Invalid action, must be either 'accept' or 'reject'", http.StatusBadRequest)
+			return
+		}
+
+		// Update the checked status based on the action
+		checkedStatus := "rejected"
+		if action == "accept" {
+			checkedStatus = "accepted"
+		}
+
+		// Update payment checked status
+		_, err = db.Exec(`UPDATE payment SET CheckedStatus = ? WHERE LoanID = ?`, checkedStatus, loanID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error updating payment checked status: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// If the payment is accepted, update the loan status to complete
+		if action == "accept" {
+			_, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("Error updating user credit score: %v", err), http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("Error updating loan status to complete: %v", err), http.StatusInternalServerError)
 				return
 			}
 		}
 
 		// Prepare a success response
 		response := map[string]string{
-			"message": "Payment processed successfully",
-			"status":  status,
+			"message": fmt.Sprintf("Payment %s and loan status updated", action),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}
-} 
+}
+
 
 func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, error) {
 	query := `SELECT LoanID, DOPayment, Status FROM payment WHERE LoanID = ?`
@@ -1262,7 +1308,8 @@ func main() {
 	http.Handle("/confirmPaymentDetails", enableCORS(http.HandlerFunc(confirmPaymentDetails(database))))
 
 	// Register your handlers
-	http.Handle("/makePayment", enableCORS(http.HandlerFunc(makePayment(database))))
+	http.Handle("/insertPayment", enableCORS(http.HandlerFunc(insertPayment(database))))
+	http.Handle("/handlePaymentApproval", enableCORS(http.HandlerFunc(handlePaymentApproval(database))))
 
 	http.Handle("/checkPaymentDetails", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
