@@ -891,8 +891,18 @@ func CheckAdminPassword(db *Database, password string) (bool, error) {
 		return false, fmt.Errorf("querying admin password: %w", err)
 	}
 
-	// Compare the provided password directly with the stored hash
-	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
+	// Hash the provided password for comparison
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return false, fmt.Errorf("hashing provided password: %w", err)
+	}
+
+	// Print both hashes for debugging
+	fmt.Printf("Stored Hash: %s\n", storedHash)
+	fmt.Printf("Provided Hash: %s\n", string(hashedPassword))
+
+	// Compare the hashed provided password with the stored hash
+	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), hashedPassword); err != nil {
 		return false, nil // Password does not match
 	}
 
