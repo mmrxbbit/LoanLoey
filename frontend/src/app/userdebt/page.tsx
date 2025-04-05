@@ -76,6 +76,8 @@ function DebtInfo(props: Props) {
 
   const [showOverlay1, setShowOverlay1] = useState(false);
   const [showOverlay2, setShowOverlay2] = useState(false);
+  const [showOverlay3, setShowOverlay3] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
 
   // Handle the submit button click
   const openOverlay1 = async (event) => {
@@ -132,19 +134,31 @@ function DebtInfo(props: Props) {
     }
   };
 
+  // Upload File
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    setSelectedFile(file);
+    // You can add further processing here, such as uploading the file to your server
+  };
+
+  const handleUploadClick = () => {
+    // Trigger the hidden file input element
+    document.getElementById(`fileInput-${props.id}`).click();
+  };
+
   return (
     <>
-      <div className="flex flex-row border-1 px-2 py-4 border-t-white border-r-white border-b-gray-300 border-l-white w-full">
+      <div className="flex flex-row px-2 py-4 border-1 border-t-white border-r-white border-b-gray-300 border-l-white w-full">
         {/* debt info */}
         <div className="grid grid-cols-2 text-nowrap">
-          <div className="col-span-1 flex flex-col gap-y-2 text-left">
+          <div className="flex flex-col gap-y-2 col-span-1 text-left">
             <p className="font-semibold text-base">Total</p>
             <p className="font-semibold text-base">Due Date</p>
             <p className="font-semibold text-base">Initial Amount</p>
             <p className="font-semibold text-base">Interest Rate</p>
             <p className="font-semibold text-base">Interest</p>
           </div>
-          <div className="col-span-1 flex flex-col gap-y-2 w-48 text-left">
+          <div className="flex flex-col gap-y-2 col-span-1 w-48 text-left">
             <p className="font-base text-base">{props.total}</p>
             <p className="font-base text-base">{props.dueDate}</p>
             <p className="font-base text-base">{props.initAmount}</p>
@@ -171,20 +185,20 @@ function DebtInfo(props: Props) {
       <Dialog open={showOverlay1} onClose={() => setShowOverlay1(false)}>
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[enter]:ease-out data-[leave]:ease-in"
+          className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[leave]:ease-in data-[enter]:ease-out"
         />
 
         <div className="z-10 fixed inset-0 w-screen overflow-y-auto">
           <div className="flex justify-center items-center min-h-full">
             <DialogPanel
               transition
-              className="relative border-gray-300 bg-white data-[closed]:opacity-0 shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in"
+              className="relative bg-white data-[closed]:opacity-0 shadow-xl p-2 border border-gray-300 rounded-md w-96 overflow-hidden transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 data-[leave]:ease-in data-[enter]:ease-out transform transform"
             >
               <div className="bg-white px-10 pt-2 pb-4">
                 <div className="mt-2 text-center">
                   <DialogTitle
                     as="h3"
-                    className="font-semibold text-center text-gray-900 text-xl"
+                    className="font-semibold text-gray-900 text-xl text-center"
                   >
                     Payment Confirmation
                   </DialogTitle>
@@ -193,12 +207,18 @@ function DebtInfo(props: Props) {
                     <p className="font-base">{totalAmount}</p>
                   </div>
                   <div className="mt-2">
-                    <p className="text-left text-sm">
+                    <p className="text-sm text-left">
                       pay to [BankName] xxx-xxxx
                     </p>
-                    <p className="text-left text-sky-400 text-sm">
-                      upload paymet receipt
-                    </p>
+                    <button
+                      className="bg-transparent m-0 mt-2 p-0 border-none w-full text-sky-400 text-sm text-left text-start hover:underline cursor-pointer"
+                      onClick={() => {
+                        setShowOverlay1(false);
+                        setShowOverlay3(true);
+                      }}
+                    >
+                      upload payment receipt
+                    </button>
                   </div>
                 </div>
               </div>
@@ -207,14 +227,14 @@ function DebtInfo(props: Props) {
                 <button
                   type="button"
                   onClick={() => setShowOverlay1(false)}
-                  className="inline-flex justify-center bg-red-600 hover:bg-red-500 shadow-sm px-3 py-2 rounded-md w-full font-semibold text-sm text-white"
+                  className="inline-flex justify-center bg-red-600 hover:bg-red-500 shadow-sm px-3 py-2 rounded-md w-full font-semibold text-white text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={(event) => confirmOverlay1(event)}
-                  className="inline-flex justify-center bg-emerald-700 hover:bg-emerald-600 shadow-sm px-3 py-2 rounded-md w-full font-semibold text-sm text-white"
+                  className="inline-flex justify-center bg-emerald-700 hover:bg-emerald-600 shadow-sm px-3 py-2 rounded-md w-full font-semibold text-white text-sm"
                 >
                   Confirm
                 </button>
@@ -227,14 +247,14 @@ function DebtInfo(props: Props) {
       <Dialog open={showOverlay2} onClose={() => setShowOverlay2(false)}>
         <DialogBackdrop
           transition
-          className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[enter]:ease-out data-[leave]:ease-in"
+          className="fixed inset-0 bg-gray-100 bg-opacity-75 data-[closed]:opacity-0 transition-opacity data-[leave]:ease-in data-[enter]:ease-out"
         />
 
         <div className="z-10 fixed inset-0 w-screen overflow-y-auto">
           <div className="flex justify-center items-center sm:items-center p-4 sm:p-0 min-h-full text-center">
             <DialogPanel
               transition
-              className="relative border-gray-300 bg-white shadow-xl p-2 border rounded-md w-96 transform transform transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 overflow-hidden data-[enter]:ease-out data-[leave]:ease-in data-[closed]:sm:scale-95"
+              className="relative bg-white shadow-xl p-2 border border-gray-300 rounded-md w-96 overflow-hidden data-[closed]:sm:scale-95 transition-all data-[closed]:translate-y-4 data-[enter]:duration-300 data-[leave]:duration-200 data-[leave]:ease-in data-[enter]:ease-out transform transform"
             >
               <div className="flex flex-col justify-center gap-y-2 p-4">
                 <div className="flex justify-center w-full">
@@ -251,6 +271,57 @@ function DebtInfo(props: Props) {
               </div>
             </DialogPanel>
           </div>
+        </div>
+      </Dialog>
+
+      <Dialog open={showOverlay3} onClose={() => setShowOverlay3(false)}>
+        <DialogBackdrop className="fixed inset-0 bg-gray-500 bg-opacity-75" />
+        <div className="fixed inset-0 flex justify-center items-center">
+          <DialogPanel className="bg-white p-6 rounded-lg w-full max-w-md">
+            <DialogTitle className="font-medium text-gray-900 text-lg">
+              Upload Payment Receipt
+            </DialogTitle>
+            <div className="mt-4">
+              <input
+                id={`fileInput-${props.id}`}
+                type="file"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <button
+                type="button"
+                onClick={handleUploadClick}
+                className="bg-blue-500 px-4 py-2 rounded-md text-white"
+              >
+                Choose File
+              </button>
+              {selectedFile && (
+                <p className="mt-2 text-gray-500 text-sm">
+                  {selectedFile.name}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end mt-4">
+              <button
+                type="button"
+                onClick={() => setShowOverlay3(false)}
+                className="bg-gray-500 mr-2 px-4 py-2 rounded-md text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  // Handle the file upload process here
+                  setShowOverlay3(false);
+                  setShowOverlay1(true);
+                }}
+                className="bg-green-500 px-4 py-2 rounded-md text-white"
+              >
+                Upload
+              </button>
+            </div>
+          </DialogPanel>
         </div>
       </Dialog>
     </>
@@ -309,7 +380,7 @@ export default function Debt() {
       <NavBar />
       <div className="mx-20 px-12 w-auto h-auto">
         <div className="flex justify-center items-center w-full">
-          <h1 className="my-4 font-semibold text-center text-xl">User Debt</h1>
+          <h1 className="my-4 font-semibold text-xl text-center">User Debt</h1>
         </div>
         {loanInfo
           ? loanInfo.map((loan, index) => (
