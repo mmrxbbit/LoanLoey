@@ -843,13 +843,22 @@ func CheckAdminPassword(db *Database, password string) (bool, error) {
 		return false, fmt.Errorf("querying admin password: %w", err)
 	}
 
-	// Compare the provided password with the stored hash
-	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
+	// Encrypt the provided password before comparing
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return false, fmt.Errorf("hashing provided password: %w", err)
+	}
+
+	// Compare the encrypted provided password with the stored hash
+	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), hashedPassword); err != nil {
+		fmt.Println("Provided password (hashed):", string(hashedPassword))
+		fmt.Println("Stored hash:", storedHash)
 		return false, nil // Password does not match
 	}
 
 	return true, nil // Password matches
 }
+
 
 
 // Enable CORS
@@ -1296,9 +1305,9 @@ func main() {
 			return
 		}
 
-		isValid, err := CheckAdminPassword(request.Password)
+		isValid, err := CheckAdminPassword(database, request.Password)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error checking admin password: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed to check admin password: %v", err), http.StatusInternalServerError)
 			return
 		}
 
