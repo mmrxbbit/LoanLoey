@@ -144,10 +144,12 @@ func (db *Database) Signup(userAccount UserAccount) error {
 	}
 
 	return nil
+
 }
 
 // DeleteAccount deletes an account and all related information.
 // It handles both user and admin accounts.
+
 func (db *Database) DeleteAccount(userID int) error {
 	var accountID int // To hold the account ID associated with the given user ID.
 
@@ -613,6 +615,7 @@ func (db *Database) checkLoanDetails(request LoanRequest) (LoanResponse, error) 
 }
 
 func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
+	fmt.Println("Entering /applyForLoan handler")
 	dueDateTime, err := time.Parse("2006-01-02 15:04", request.DueDateTime)
 	if err != nil {
 		return LoanResponse{}, fmt.Errorf("parsing DueDateTime: %w", err)
@@ -803,7 +806,7 @@ func makePayment(db *Database) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}
-}
+} 
 
 func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, error) {
 	query := `SELECT LoanID, DOPayment, Status FROM payment WHERE LoanID = ?`
@@ -827,6 +830,28 @@ func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, err
 	return response, nil
 }
 
+func CheckAdminPassword(db *Database, password string) (bool, error) {
+	var storedHash string
+
+	// Query to get the stored password hash from the adminpassword table
+	query := `SELECT PasswordHash FROM adminpassword LIMIT 1`
+	err := db.QueryRow(query).Scan(&storedHash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, fmt.Errorf("no admin password found")
+		}
+		return false, fmt.Errorf("querying admin password: %w", err)
+	}
+
+	// Compare the provided password with the stored hash
+	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
+		return false, nil // Password does not match
+	}
+
+	return true, nil // Password matches
+}
+
+
 // Enable CORS
 func enableCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -848,6 +873,8 @@ func enableCORS(h http.Handler) http.Handler {
 		h.ServeHTTP(w, r)
 	})
 }
+
+
 
 // Main function to set up server and routes
 func main() {
@@ -1200,6 +1227,7 @@ func main() {
 
 	// / HTTP route for applying for a loan
 	http.Handle("/applyForLoan", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
@@ -1254,6 +1282,33 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	})))
+	http.Handle("/checkAdminPassword", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var request struct {
+			Password string `json:"password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		isValid, err := CheckAdminPassword(request.Password)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error checking admin password: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		response := map[string]bool{"is_valid": isValid}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	})))
+	
+	
+	// Start the server
 
 	log.Println("Server starting on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
