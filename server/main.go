@@ -880,6 +880,7 @@ func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, err
 
 func CheckAdminPassword(db *Database, password string) (bool, error) {
 	var storedHash string
+	
 
 	// Query to get the stored password hash from the adminpassword table
 	query := `SELECT PasswordHash FROM adminpassword LIMIT 1`
@@ -890,19 +891,13 @@ func CheckAdminPassword(db *Database, password string) (bool, error) {
 		}
 		return false, fmt.Errorf("querying admin password: %w", err)
 	}
-
-	// Hash the provided password for comparison
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return false, fmt.Errorf("hashing provided password: %w", err)
-	}
-
 	// Print both hashes for debugging
+	
 	fmt.Printf("Stored Hash: %s\n", storedHash)
-	fmt.Printf("Provided Hash: %s\n", string(hashedPassword))
+	fmt.Printf("Provided Hash: %s\n", password)
 
 	// Compare the hashed provided password with the stored hash
-	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), hashedPassword); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
 		return false, nil // Password does not match
 	}
 
