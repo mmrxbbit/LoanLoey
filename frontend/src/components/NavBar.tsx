@@ -213,13 +213,13 @@ export default function NavBar() {
         {/* Plain text */}
         <div className="flex items-center space-x-4">
           <Link href="/home" className="text-black hover:underline">
-            <span className="cursor-pointer">Home</span> {/* No <a> */}
+            <span className="cursor-pointer">Home</span>
           </Link>
           <Link href="/AboutUs" className="text-black hover:underline">
-            <span className="cursor-pointer">About Us</span> {/* No <a> */}
+            <span className="cursor-pointer">About Us</span>
           </Link>
           <Link href="/contact" className="text-black hover:underline">
-            <span className="cursor-pointer">Contact</span> {/* No <a> */}
+            <span className="cursor-pointer">Contact</span>
           </Link>
           {isLoggedIn ? (
             <Menu
