@@ -937,10 +937,15 @@ func getPaymentStatus(db *Database) http.HandlerFunc {
 		err = db.QueryRow(query, loanID).Scan(&paymentID, &checkedStatus)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				http.Error(w, "No payment found for this loan", http.StatusNotFound)
-			} else {
-				http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+				// Return null if no payment is found
+				response := map[string]interface{}{
+					"PaymentID":     nil,
+					"CheckedStatus": nil,
+				}
+				json.NewEncoder(w).Encode(response)
+				return
 			}
+			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
