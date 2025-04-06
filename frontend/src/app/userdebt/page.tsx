@@ -20,7 +20,6 @@ interface Props {
   interestRate: number;
   interest: number;
   status: string;
-  updateStatus: () => void;
 }
 
 interface LoanResponse {
@@ -39,6 +38,7 @@ function DebtInfo(props: Props) {
   const [canPay, setPay] = useState(false);
   const [totalAmount, setTotal] = useState(0);
 
+  // loan status
   useEffect(() => {
     switch (props.status) {
       case "complete":
@@ -73,6 +73,48 @@ function DebtInfo(props: Props) {
         setPay(true);
     }
   }, [props.status]);
+
+  // payment status
+  const [paymentNote, setPaymentNote] = useState("");
+  const [paymentColor, setPaymentColor] = useState("");
+
+  const fetchPaymentStatus = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/getPaymentStatus?loanID=${props.id}`
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const paymentID = data.PaymentID;
+      const paymentStatus = data.CheckedStatus;
+
+      if (paymentID) {
+        switch (paymentStatus) {
+          case "rejected":
+            setPaymentNote(
+              "Your payment has been rejected, please proceed again"
+            );
+            setPaymentColor("text-red-600");
+            setPay(true);
+            break;
+          default:
+            setPaymentNote("Waiting for approval");
+            setPaymentColor("text-amber-500");
+            setPay(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching payment status:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPaymentStatus();
+  }, [props.id]);
 
   const [showOverlay1, setShowOverlay1] = useState(false);
   const [showOverlay2, setShowOverlay2] = useState(false);
@@ -111,7 +153,7 @@ function DebtInfo(props: Props) {
     // Make an API request to confirm payment
     try {
       const response = await fetch(
-        `http://localhost:8080/makePayment?loanID=${props.id}`,
+        `http://localhost:8080/insertPayment?loanID=${props.id}`,
         {
           method: "POST", // Ensure you are sending a POST request
         }
@@ -121,14 +163,13 @@ function DebtInfo(props: Props) {
           `Failed to confirm payment. Status: ${response.status}`
         );
       }
-
       const confirm = await response.json();
       console.log("Confirm Payment Response:", confirm); // For debugging
 
       setShowOverlay1(false);
       setShowOverlay2(true);
 
-      props.updateStatus(); // Update loan status to complete
+      fetchPaymentStatus(); // Update payment status UI
     } catch (error) {
       console.error("Error confirming payment:", error);
     }
@@ -178,6 +219,7 @@ function DebtInfo(props: Props) {
               pay
             </button>
           ) : null}
+          <p className={`text-nowrap ${paymentColor}`}>{paymentNote}</p>
           <p className={`text-nowrap ${statusColor}`}>{loanNote}</p>
         </div>
       </div>
@@ -332,15 +374,6 @@ export default function Debt() {
   const userId = Cookies.get("userId");
   const [loanInfo, setLoanInfo] = useState<LoanResponse[] | null>(null);
 
-  const updateLoanStatus = (index: number) => {
-    setLoanInfo((prevLoanInfo) => {
-      if (!prevLoanInfo) return null;
-      const updatedLoans = [...prevLoanInfo];
-      updatedLoans[index].status = "complete"; // Update status to 'complete'
-      return updatedLoans;
-    });
-  };
-
   useEffect(() => {
     async function fetchLoanData() {
       if (!userId) return; // Ensure userId is valid
@@ -393,7 +426,6 @@ export default function Debt() {
                 interestRate={loan.interest_rate}
                 interest={loan.interest}
                 status={loan.status}
-                updateStatus={() => updateLoanStatus(index)}
               />
             ))
           : null}
