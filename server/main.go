@@ -789,9 +789,6 @@ func insertPayment(db *Database) http.HandlerFunc {
 	}
 }
 
-
-
-
 func handlePaymentApproval(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received request to approve/reject payment for LoanID: %s", r.URL.Query().Get("loanID"))
@@ -855,7 +852,6 @@ func handlePaymentApproval(db *Database) http.HandlerFunc {
 	}
 }
 
-
 func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, error) {
 	query := `SELECT LoanID, DOPayment, Status FROM payment WHERE LoanID = ?`
 	var loanIDFromDB int
@@ -880,7 +876,6 @@ func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, err
 
 func CheckAdminPassword(db *Database, password string) (bool, error) {
 	var storedHash string
-	
 
 	// Query to get the stored password hash from the adminpassword table
 	query := `SELECT PasswordHash FROM adminpassword LIMIT 1`
@@ -892,7 +887,7 @@ func CheckAdminPassword(db *Database, password string) (bool, error) {
 		return false, fmt.Errorf("querying admin password: %w", err)
 	}
 	// Print both hashes for debugging
-	
+
 	fmt.Printf("Stored Hash: %s\n", storedHash)
 	fmt.Printf("Provided Hash: %s\n", password)
 
@@ -959,8 +954,6 @@ func getPaymentStatus(db *Database) http.HandlerFunc {
 	}
 }
 
-
-
 // Enable CORS
 func enableCORS(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -982,8 +975,6 @@ func enableCORS(h http.Handler) http.Handler {
 		h.ServeHTTP(w, r)
 	})
 }
-
-
 
 // Main function to set up server and routes
 func main() {
@@ -1419,9 +1410,6 @@ func main() {
 
 	http.Handle("/getPaymentStatus", enableCORS(http.HandlerFunc(getPaymentStatus(database))))
 
-	
-	
-	
 	// Start the server
 
 	log.Println("Server starting on :8080")
