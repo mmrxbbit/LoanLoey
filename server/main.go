@@ -904,6 +904,57 @@ func CheckAdminPassword(db *Database, password string) (bool, error) {
 	return true, nil // Password matches
 }
 
+func getPaymentStatus(db *Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Enable CORS if needed
+		w.Header().Set("Content-Type", "application/json")
+
+		// Parse loanID from query parameters
+		loanIDStr := r.URL.Query().Get("loanID")
+		if loanIDStr == "" {
+			http.Error(w, "loanID is required", http.StatusBadRequest)
+			return
+		}
+
+		loanID, err := strconv.Atoi(loanIDStr)
+		if err != nil {
+			http.Error(w, "Invalid loanID format", http.StatusBadRequest)
+			return
+		}
+
+		// Query for the latest payment for that loan
+		query := `
+			SELECT PaymentID, CheckedStatus
+			FROM payment
+			WHERE LoanID = ?
+			ORDER BY PaymentID DESC
+			LIMIT 1
+		`
+
+		var paymentID int
+		var checkedStatus string
+
+		err = db.QueryRow(query, loanID).Scan(&paymentID, &checkedStatus)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "No payment found for this loan", http.StatusNotFound)
+			} else {
+				http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		// Prepare and send the response
+		response := map[string]interface{}{
+			"PaymentID":     paymentID,
+			"CheckedStatus": checkedStatus,
+		}
+
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
+
 
 // Enable CORS
 func enableCORS(h http.Handler) http.Handler {
@@ -1360,6 +1411,10 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	})))
+
+	http.Handle("/getPaymentStatus", enableCORS(http.HandlerFunc(getPaymentStatus(database))))
+
+	
 	
 	
 	// Start the server
