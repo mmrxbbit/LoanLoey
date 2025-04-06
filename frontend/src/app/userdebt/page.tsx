@@ -120,6 +120,7 @@ function DebtInfo(props: Props) {
   const [showOverlay2, setShowOverlay2] = useState(false);
   const [showOverlay3, setShowOverlay3] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Handle the submit button click
   const openOverlay1 = async (event) => {
@@ -150,12 +151,27 @@ function DebtInfo(props: Props) {
   const confirmOverlay1 = async (event) => {
     event.preventDefault();
 
+    // Check if the user has uploaded a receipt file
+    if (!selectedFile) {
+      alert("Please attach the receipt file before confirming payment.");
+      return;
+    }
+
+    // Clear the error message if the file is uploaded
+    setErrorMessage("");
+
+    // Create FormData to send the receipt file and loan ID
+    const formData = new FormData();
+    formData.append("receipt", selectedFile); // Attach the receipt file
+    formData.append("loanID", props.id.toString()); // Add LoanID as a query parameter
+
     // Make an API request to confirm payment
     try {
       const response = await fetch(
         `http://localhost:8080/insertPayment?loanID=${props.id}`,
         {
           method: "POST", // Ensure you are sending a POST request
+          body: formData, // Send the FormData containing the file
         }
       );
       if (!response.ok) {
@@ -166,12 +182,21 @@ function DebtInfo(props: Props) {
       const confirm = await response.json();
       console.log("Confirm Payment Response:", confirm); // For debugging
 
-      setShowOverlay1(false);
-      setShowOverlay2(true);
-
-      fetchPaymentStatus(); // Update payment status UI
+      // Check if the backend confirms the upload was successful
+      if (
+        confirm.message ===
+        "Payment inserted and receipt encrypted successfully"
+      ) {
+        alert("Receipt uploaded successfully!");
+        setShowOverlay1(false);
+        setShowOverlay2(true);
+        fetchPaymentStatus(); // Update payment status UI
+      } else {
+        alert("Failed to upload receipt. Please try again.");
+      }
     } catch (error) {
       console.error("Error confirming payment:", error);
+      alert("An error occurred while confirming payment. Please try again.");
     }
   };
 
@@ -187,49 +212,17 @@ function DebtInfo(props: Props) {
     document.getElementById(`fileInput-${props.id}`).click();
   };
 
-  // Upload file to backend
-  const handleFileUpload = async () => {
+  // selected and temporarily store the image file in frontend
+  const handleFileUpload = () => {
     if (!selectedFile) {
       alert("Please select a file before uploading.");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("receipt", selectedFile); // 'receipt' matches the backend key
-    formData.append("loanID", props.id.toString()); // Add LoanID as a query parameter
-
-    try {
-      const response = await fetch(
-        `http://localhost:8080/insertPayment?loanID=${props.id}`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to upload file. Status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log("File upload successful:", result);
-
-      // Reset the file input and state
-      setSelectedFile(null);
-      const fileInput = document.getElementById(
-        `fileInput-${props.id}`
-      ) as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = ""; // Reset file input
-      }
-
-      // Close the overlay and reset the file input
-      setShowOverlay3(false);
-      alert("File uploaded successfully!");
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      alert("Failed to upload file. Please try again.");
-    }
+    // Display a success message or update the UI
+    alert("File selected successfully!");
+    setShowOverlay3(false); // Close overlay3
+    setShowOverlay1(true); // Reopen overlay1
   };
 
   return (
@@ -298,7 +291,7 @@ function DebtInfo(props: Props) {
                       pay to [BankName] xxx-xxxx
                     </p>
                     <button
-                      className="bg-transparent m-0 mt-2 p-0 border-none w-full text-sky-400 text-sm text-left text-start hover:underline cursor-pointer"
+                      className="bg-transparent m-0 mt-2 p-0 border-none w-full text-sky-400 text-sm text-left hover:underline cursor-pointer"
                       onClick={() => {
                         setShowOverlay1(false);
                         setShowOverlay3(true);
@@ -306,6 +299,11 @@ function DebtInfo(props: Props) {
                     >
                       upload payment receipt
                     </button>
+                    {errorMessage && (
+                      <p className="mt-2 text-red-600 text-sm">
+                        {errorMessage}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

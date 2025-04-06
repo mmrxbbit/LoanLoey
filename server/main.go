@@ -1,12 +1,21 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -646,6 +655,193 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 	}, nil
 }
 
+
+// Helper function to generate the RSA key pair
+// GenerateRSAKeys generates an RSA key pair and saves them to files
+func GenerateRSAKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
+    // Generate a private key
+    privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+    if err != nil {
+        return nil, nil, fmt.Errorf("error generating private key: %w", err)
+    }
+
+    // Save the private key to a file
+    privateKeyFile, err := os.Create("private_key.pem")
+    if err != nil {
+        return nil, nil, fmt.Errorf("error creating private key file: %w", err)
+    }
+    defer privateKeyFile.Close()
+
+    privateKeyPEM := pem.EncodeToMemory(&pem.Block{
+        Type:  "RSA PRIVATE KEY",
+        Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+    })
+    privateKeyFile.Write(privateKeyPEM)
+
+    // Save the public key to a file
+    publicKey := &privateKey.PublicKey
+    publicKeyFile, err := os.Create("public_key.pem")
+    if err != nil {
+        return nil, nil, fmt.Errorf("error creating public key file: %w", err)
+    }
+    defer publicKeyFile.Close()
+
+    publicKeyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
+    if err != nil {
+        return nil, nil, fmt.Errorf("error marshaling public key: %w", err)
+    }
+	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
+        Type:  "PUBLIC KEY",
+        Bytes: publicKeyBytes,
+    })
+    publicKeyFile.Write(publicKeyPEM)
+
+    return privateKey, publicKey, nil
+}
+
+func loadPublicKey(filename string) (*rsa.PublicKey, error) {
+    // Read the public key file
+    keyBytes, err := os.ReadFile(filename)
+	if err != nil {
+        return nil, fmt.Errorf("failed to read public key file: %w", err)
+    }
+
+    // Decode the PEM block
+    block, _ := pem.Decode(keyBytes)
+    if block == nil || block.Type != "PUBLIC KEY" {
+        return nil, fmt.Errorf("failed to decode PEM block containing public key")
+    }
+
+    // Parse the public key
+    publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+    if err != nil {
+        return nil, fmt.Errorf("failed to parse public key: %w", err)
+    }
+
+    // Assert the type to *rsa.PublicKey
+    rsaPublicKey, ok := publicKey.(*rsa.PublicKey)
+    if !ok {
+        return nil, fmt.Errorf("not an RSA public key")
+    }
+
+    return rsaPublicKey, nil
+}
+
+// Generate a random AES key
+func generateAESKey() ([]byte, error) {
+    key := make([]byte, 32) // 256-bit AES key
+    _, err := rand.Read(key)
+    if err != nil {
+        return nil, err
+    }
+    return key, nil
+}
+
+// Encrypt data using AES-GCM
+func encryptWithAES(data, key []byte) ([]byte, error) {
+    block, err := aes.NewCipher(key)
+    if err != nil {
+        return nil, err
+    }
+
+    gcm, err := cipher.NewGCM(block)
+    if err != nil {
+        return nil, err
+    }
+
+    nonce := make([]byte, gcm.NonceSize())
+    _, err = io.ReadFull(rand.Reader, nonce)
+    if err != nil {
+        return nil, err
+    }
+
+    ciphertext := gcm.Seal(nonce, nonce, data, nil)
+    return ciphertext, nil
+}
+
+// Decrypt data using AES-GCM
+func decryptWithAES(ciphertext, key []byte) ([]byte, error) {
+    block, err := aes.NewCipher(key)
+    if err != nil {
+        return nil, err
+    }
+
+    gcm, err := cipher.NewGCM(block)
+    if err != nil {
+        return nil, err
+    }
+
+    nonceSize := gcm.NonceSize()
+    if len(ciphertext) < nonceSize {
+        return nil, errors.New("ciphertext too short")
+    }
+
+    nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+    plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+    if err != nil {
+        return nil, err
+    }
+
+    return plaintext, nil
+}
+
+func decryptReceiptHandler(db *Database, privateKey *rsa.PrivateKey) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        log.Printf("Received request to decrypt receipt for LoanID: %s", r.URL.Query().Get("loanID"))
+
+        // Check if the request method is GET
+        if r.Method != http.MethodGet {
+            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+            return
+        }
+
+        // Retrieve LoanID from query parameters
+        loanIDStr := r.URL.Query().Get("loanID")
+        if loanIDStr == "" {
+            http.Error(w, "LoanID is required", http.StatusBadRequest)
+            return
+        }
+
+        // Convert LoanID to integer
+        loanID, err := strconv.Atoi(loanIDStr)
+        if err != nil {
+            http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
+            return
+        }
+
+        // Query to retrieve the encrypted receipt and AES key from the database
+        var encryptedReceipt, encryptedAESKey []byte
+        query := `SELECT Receipt, AESKey FROM payment WHERE LoanID = ?`
+        err = db.QueryRow(query, loanID).Scan(&encryptedReceipt, &encryptedAESKey)
+        if err != nil {
+            if err == sql.ErrNoRows {
+                http.Error(w, "No receipt found for the given LoanID", http.StatusNotFound)
+                return
+            }
+            http.Error(w, fmt.Sprintf("Error querying receipt: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // Decrypt the AES key using the private key
+        aesKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error decrypting AES key: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // Decrypt the receipt using the AES key
+        decryptedReceipt, err := decryptWithAES(encryptedReceipt, aesKey)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error decrypting receipt: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // Send the decrypted receipt as a response
+        w.Header().Set("Content-Type", "application/octet-stream")
+        w.Write(decryptedReceipt)
+    }
+}
+
 // PAYMENT
 func confirmPaymentDetails(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -708,85 +904,129 @@ func confirmPaymentDetails(db *Database) http.HandlerFunc {
 	}
 }
 
-func insertPayment(db *Database) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request to insert payment for LoanID: %s", r.URL.Query().Get("loanID"))
+func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        log.Printf("Received request to insert payment for LoanID: %s", r.URL.Query().Get("loanID"))
 
-		// Check if the request method is POST
-		if r.Method != http.MethodPost {
-			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-			return
-		}
+        // Check if the request method is POST
+        if r.Method != http.MethodPost {
+            http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+            return
+        }
 
-		// Retrieve LoanID from query parameters
-		loanIDStr := r.URL.Query().Get("loanID")
-		if loanIDStr == "" {
-			http.Error(w, "LoanID is required", http.StatusBadRequest)
-			return
-		}
+        // Parse the multipart form to handle file uploads
+        err := r.ParseMultipartForm(50 << 20) // Limit file size to 50 MB
+        if err != nil {
+            http.Error(w, "Error parsing form data", http.StatusBadRequest)
+            return
+        }
 
-		// Convert LoanID to integer
-		loanID, err := strconv.Atoi(loanIDStr)
-		if err != nil {
-			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
-			return
-		}
+        // Retrieve LoanID from query parameters
+        loanIDStr := r.URL.Query().Get("loanID")
+        if loanIDStr == "" {
+            http.Error(w, "LoanID is required", http.StatusBadRequest)
+            return
+        }
 
-		// Query to retrieve loan due date
-		query := `SELECT Duedate FROM loan WHERE LoanID = ?`
-		var dueDateStr string
-		err = db.QueryRow(query, loanID).Scan(&dueDateStr)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				http.Error(w, "Loan not found", http.StatusNotFound)
-				return
-			}
-			http.Error(w, fmt.Sprintf("Error querying loan due date: %v", err), http.StatusInternalServerError)
-			return
-		}
+        // Convert LoanID to integer
+        loanID, err := strconv.Atoi(loanIDStr)
+        if err != nil {
+            http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
+            return
+        }
 
-		// Parse the due date
-		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Error parsing due date: %v", err), http.StatusInternalServerError)
-			return
-		}
+        // Retrieve the uploaded file
+        file, _, err := r.FormFile("receipt")
+        if err != nil {
+			log.Printf("Error retrieving the file: %v", err)
+            http.Error(w, "Error retrieving the file", http.StatusBadRequest)
+            return
+        }
+        defer file.Close()
 
-		// Get current Thai time
-		tz, err := time.LoadLocation("Asia/Bangkok")
-		if err != nil {
-			http.Error(w, "Error loading timezone", http.StatusInternalServerError)
-			return
-		}
-		dopayment := time.Now().In(tz)
-		fmt.Println("dopayment: ", dopayment)
+        // Read the file content
+        fileBytes, err := io.ReadAll(file)
+        if err != nil {
+			log.Printf("Error reading the file: %v", err)
+            http.Error(w, "Error reading the file", http.StatusInternalServerError)
+            return
+        }
 
-		// Determine payment status
-		status := "intime"
-		if dopayment.Year() > dueDate.Year() ||
-			(dopayment.Year() == dueDate.Year() && dopayment.Month() > dueDate.Month()) ||
-			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() > dueDate.Day()) ||
-			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() == dueDate.Day() && dopayment.Hour() > dueDate.Hour()) ||
-			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() == dueDate.Day() && dopayment.Hour() == dueDate.Hour() && dopayment.Minute() > dueDate.Minute()) ||
-			(dopayment.Year() == dueDate.Year() && dopayment.Month() == dueDate.Month() && dopayment.Day() == dueDate.Day() && dopayment.Hour() == dueDate.Hour() && dopayment.Minute() == dueDate.Minute() && dopayment.Second() > dueDate.Second()) {
-			status = "late"
-		}
+         // Generate a random AES key
+		 aesKey, err := generateAESKey()
+		 if err != nil {
+			 log.Printf("Error generating AES key: %v", err)
+			 http.Error(w, "Error generating AES key", http.StatusInternalServerError)
+			 return
+		 }
+ 
+		 // Encrypt the file content using AES
+		 encryptedFile, err := encryptWithAES(fileBytes, aesKey)
+		 if err != nil {
+			 log.Printf("Error encrypting file with AES: %v", err)
+			 http.Error(w, "Error encrypting file", http.StatusInternalServerError)
+			 return
+		 }
+ 
+		 // Encrypt the AES key using RSA
+		 encryptedAESKey, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, aesKey)
+		 if err != nil {
+			 log.Printf("Error encrypting AES key with RSA: %v", err)
+			 http.Error(w, "Error encrypting AES key", http.StatusInternalServerError)
+			 return
+		 }
 
-		// Insert the payment record into the payment table
-		_, err = db.Exec(`INSERT INTO payment (LoanID, DOPayment, Status, CheckedStatus) VALUES (?, ?, ?, ?)`, loanID, dopayment.Format("2006-01-02 15:04:05"), status, "waiting")
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Error inserting payment record: %v", err), http.StatusInternalServerError)
-			return
-		}
+        // Query to retrieve loan due date
+        query := `SELECT Duedate FROM loan WHERE LoanID = ?`
+        var dueDateStr string
+        err = db.QueryRow(query, loanID).Scan(&dueDateStr)
+        if err != nil {
+            if err == sql.ErrNoRows {
+                http.Error(w, "Loan not found", http.StatusNotFound)
+                return
+            }
+            http.Error(w, fmt.Sprintf("Error querying loan due date: %v", err), http.StatusInternalServerError)
+            return
+        }
 
-		// Prepare a success response
-		response := map[string]string{
-			"message": "Payment inserted and status set to waiting",
-		}
+        // Parse the due date
+        dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error parsing due date: %v", err), http.StatusInternalServerError)
+            return
+        }
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-	}
+        // Get current Thai time
+        tz, err := time.LoadLocation("Asia/Bangkok")
+        if err != nil {
+            http.Error(w, "Error loading timezone", http.StatusInternalServerError)
+            return
+        }
+        dopayment := time.Now().In(tz)
+
+        // Determine payment status
+        status := "intime"
+        if dopayment.After(dueDate) {
+            status = "late"
+        }
+
+        // Insert the payment record into the payment table, including the encrypted file and AES key
+        _, err = db.Exec(`INSERT INTO payment (LoanID, DOPayment, Status, CheckedStatus, Receipt, AESKey) VALUES (?, ?, ?, ?, ?, ?)`,
+            loanID, dopayment.Format("2006-01-02 15:04:05"), status, "waiting", encryptedFile, encryptedAESKey)
+        if err != nil {
+            log.Printf("Error inserting payment record: %v", err)
+            http.Error(w, fmt.Sprintf("Error inserting payment record: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // Prepare a success response
+        response := map[string]string{
+            "message": "Payment inserted and receipt encrypted successfully",
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)
+    }
 }
 
 func handlePaymentApproval(db *Database) http.HandlerFunc {
@@ -978,6 +1218,18 @@ func enableCORS(h http.Handler) http.Handler {
 
 // Main function to set up server and routes
 func main() {
+	// Generate RSA keys
+	privateKey, publicKey, err := GenerateRSAKeys()
+    if err != nil {
+        log.Fatalf("Failed to generate RSA keys: %v", err)
+    }
+
+	// Load the RSA public key from file
+	publicKey, err = loadPublicKey("public_key.pem")
+    if err != nil {
+        log.Fatalf("Failed to load RSA public key: %v", err)
+    }
+
 	// Connect to the database
 	db, err := sql.Open("mysql", "root:root@tcp(localhost:8889)/loanloey")
 	if err != nil {
@@ -1353,7 +1605,8 @@ func main() {
 	http.Handle("/confirmPaymentDetails", enableCORS(http.HandlerFunc(confirmPaymentDetails(database))))
 
 	// Register your handlers
-	http.Handle("/insertPayment", enableCORS(http.HandlerFunc(insertPayment(database))))
+	http.Handle("/insertPayment", enableCORS(http.HandlerFunc(insertPayment(database, publicKey))))
+	http.Handle("/decryptReceipt", enableCORS(http.HandlerFunc(decryptReceiptHandler(database, privateKey))))
 	http.Handle("/handlePaymentApproval", enableCORS(http.HandlerFunc(handlePaymentApproval(database))))
 
 	http.Handle("/checkPaymentDetails", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
