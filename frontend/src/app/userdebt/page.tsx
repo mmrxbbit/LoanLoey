@@ -187,6 +187,51 @@ function DebtInfo(props: Props) {
     document.getElementById(`fileInput-${props.id}`).click();
   };
 
+  // Upload file to backend
+  const handleFileUpload = async () => {
+    if (!selectedFile) {
+      alert("Please select a file before uploading.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("receipt", selectedFile); // 'receipt' matches the backend key
+    formData.append("loanID", props.id.toString()); // Add LoanID as a query parameter
+
+    try {
+      const response = await fetch(
+        `http://localhost:8080/insertPayment?loanID=${props.id}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to upload file. Status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("File upload successful:", result);
+
+      // Reset the file input and state
+      setSelectedFile(null);
+      const fileInput = document.getElementById(
+        `fileInput-${props.id}`
+      ) as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = ""; // Reset file input
+      }
+
+      // Close the overlay and reset the file input
+      setShowOverlay3(false);
+      alert("File uploaded successfully!");
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert("Failed to upload file. Please try again.");
+    }
+  };
+
   return (
     <>
       <div className="flex flex-row px-2 py-4 border-1 border-t-white border-r-white border-b-gray-300 border-l-white w-full">
@@ -333,7 +378,7 @@ function DebtInfo(props: Props) {
               <button
                 type="button"
                 onClick={handleUploadClick}
-                className="bg-blue-500 px-4 py-2 rounded-md text-white"
+                className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-md text-white"
               >
                 Choose File
               </button>
@@ -347,18 +392,20 @@ function DebtInfo(props: Props) {
               <button
                 type="button"
                 onClick={() => setShowOverlay3(false)}
-                className="bg-gray-500 mr-2 px-4 py-2 rounded-md text-white"
+                className="bg-red-600 hover:bg-red-700 mr-2 px-4 py-2 rounded-md text-white"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  // Handle the file upload process here
+                  // Handle the file upload process
+                  handleFileUpload();
+                  // Close the overlay after uploading
                   setShowOverlay3(false);
                   setShowOverlay1(true);
                 }}
-                className="bg-green-500 px-4 py-2 rounded-md text-white"
+                className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-md text-white hover:"
               >
                 Upload
               </button>
