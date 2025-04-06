@@ -70,100 +70,109 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex justify-center items-center bg-black min-h-screen text-white">
-      <div className="flex flex-col items-center space-y-6 p-8 w-1/3">
-        {/* logo */}
-        <div className="text-center">
-          <img src="/logo2.png" alt="LoanLoey Logo" className="mb-1 w-60" />
-        </div>
+    <div className="relative  justify-center items-center bg-black min-h-screen text-white">
+      <Link
+        href="/home"
+        className="absolute top-8 left-12 font-bold text-white hover:underline"
+      >
+        <span className="cursor-pointer">Home</span>
+      </Link>
 
-        <h1 className="mt-2 font-bold text-3xl">Sign in to LoanLoey</h1>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="flex flex-col items-center space-y-6 p-8 w-1/3">
+          {/* logo */}
+          <div className="text-center">
+            <img src="/logo2.png" alt="LoanLoey Logo" className="mb-1 w-60" />
+          </div>
 
-        {/* login form */}
-        <form
-          className="space-y-4 bg-gray-700 p-6 rounded-lg w-full max-w-xs"
-          onSubmit={handleLogin}
-        >
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            className="px-4 py-2 rounded-md w-full focus:outline-none text-black"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="px-4 py-2 rounded-md w-full focus:outline-none text-black"
-          />
+          <h1 className="mt-2 font-bold text-3xl">Sign in to LoanLoey</h1>
 
-          <button
-            type="submit"
-            className="bg-[#FFD28F] hover:bg-[#dfa651] mt-4 py-2 rounded-md w-full text-black hover:text-white"
+          {/* login form */}
+          <form
+            className="space-y-4 bg-gray-700 p-6 rounded-lg w-full max-w-xs"
+            onSubmit={handleLogin}
           >
-            Log in
-          </button>
-        </form>
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              className="px-4 py-2 rounded-md w-full focus:outline-none text-black"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="px-4 py-2 rounded-md w-full focus:outline-none text-black"
+            />
 
-        {errorMessage && (
-          <p className="mt-4 text-center text-red-500 text-sm">
-            {errorMessage}
-          </p>
-        )}
-
-        <div className="text-center text-sm">
-          <p>
-            Don’t have an account?{" "}
-            <Link href="/signup" className="text-blue-400 hover:underline">
-              sign up
-            </Link>
-          </p>
-          <p>or </p>
-          <p>
             <button
-              onClick={handleAdminSignUpClick}
-              className="text-blue-400 hover:underline"
+              type="submit"
+              className="bg-[#FFD28F] hover:bg-[#dfa651] mt-4 py-2 rounded-md w-full text-black hover:text-white"
             >
-              Sign up as a loan shark admin
+              Log in
             </button>
-          </p>
+          </form>
 
-          {/* password pop-up for sign up admin */}
-          {showAdminPopup && (
-            <div className="z-50 fixed inset-0 flex justify-center items-center bg-black bg-opacity-75">
-              <div className="bg-gray-200 p-6 rounded-2xl w-80 text-center">
-                <h2 className="mb-4 font-bold text-gray-800 text-large">
-                  Please fill in the password
-                </h2>
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  className="border-gray-400 mb-3 p-2 border rounded-xl w-full text-black"
-                />
-                {passwordError && (
-                  <p className="mb-2 text-red-500 text-sm">{passwordError}</p>
-                )}
-                <button
-                  onClick={handlePasswordSubmit}
-                  className="bg-black hover:bg-transparent shadow-xl p-2 border hover:border border-black hover:border-black hover:border-solid rounded-xl w-full text-white hover:text-green-600"
-                >
-                  OK
-                </button>
-                <button
-                  onClick={() => setShowAdminPopup(false)}
-                  className="mt-3 text-gray-500 text-sm hover:underline"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+          {errorMessage && (
+            <p className="mt-4 text-center text-red-500 text-sm">
+              {errorMessage}
+            </p>
           )}
+
+          <div className="text-center text-sm">
+            <p>
+              Don’t have an account?{" "}
+              <Link href="/signup" className="text-blue-400 hover:underline">
+                sign up
+              </Link>
+            </p>
+            <p>or </p>
+            <p>
+              <button
+                onClick={handleAdminSignUpClick}
+                className="text-blue-400 hover:underline"
+              >
+                Sign up as a loan shark admin
+              </button>
+            </p>
+
+            {/* password pop-up for sign up admin */}
+            {showAdminPopup && (
+              <div className="z-50 fixed inset-0 flex justify-center items-center bg-black bg-opacity-75">
+                <div className="bg-gray-200 p-6 rounded-2xl w-80 text-center">
+                  <h2 className="mb-4 font-bold text-gray-800 text-large">
+                    Please fill in the password
+                  </h2>
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    className="border-gray-400 mb-3 p-2 border rounded-xl w-full text-black"
+                  />
+                  {passwordError && (
+                    <p className="mb-2 text-red-500 text-sm">{passwordError}</p>
+                  )}
+                  <button
+                    onClick={handlePasswordSubmit}
+                    className="bg-black hover:bg-transparent shadow-xl p-2 border hover:border border-black hover:border-black hover:border-solid rounded-xl w-full text-white hover:text-green-600"
+                  >
+                    OK
+                  </button>
+                  <button
+                    onClick={() => setShowAdminPopup(false)}
+                    className="mt-3 text-gray-500 text-sm hover:underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
