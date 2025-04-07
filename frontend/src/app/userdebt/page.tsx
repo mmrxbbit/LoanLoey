@@ -304,6 +304,11 @@ function DebtInfo(props: Props) {
                         {errorMessage}
                       </p>
                     )}
+                    {selectedFile && (
+                      <p className="text-xs text-gray-500 text-left">
+                        {selectedFile.name}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
