@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -726,6 +728,25 @@ func loadPublicKey(filename string) (*rsa.PublicKey, error) {
 	return rsaPublicKey, nil
 }
 
+func loadPrivateKey(filename string) (*rsa.PrivateKey, error) {
+    keyBytes, err := os.ReadFile(filename)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read private key file: %w", err)
+    }
+
+    block, _ := pem.Decode(keyBytes)
+    if block == nil || block.Type != "RSA PRIVATE KEY" {
+        return nil, fmt.Errorf("failed to decode PEM block containing private key")
+    }
+
+    privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+    if err != nil {
+        return nil, fmt.Errorf("failed to parse private key: %w", err)
+    }
+
+    return privateKey, nil
+}
+
 // Generate a random AES key
 func generateAESKey() ([]byte, error) {
 	key := make([]byte, 32) // 256-bit AES key
@@ -785,8 +806,8 @@ func decryptWithAES(ciphertext, key []byte) ([]byte, error) {
 }
 
 func decryptReceiptHandler(db *Database, privateKey *rsa.PrivateKey) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request to decrypt receipt for LoanID: %s", r.URL.Query().Get("loanID"))
+    return func(w http.ResponseWriter, r *http.Request) {
+        log.Printf("Received request to decrypt receipts for LoanID: %s", r.URL.Query().Get("loanID"))
 
 		// Check if the request method is GET
 		if r.Method != http.MethodGet {
@@ -808,38 +829,160 @@ func decryptReceiptHandler(db *Database, privateKey *rsa.PrivateKey) http.Handle
 			return
 		}
 
-		// Query to retrieve the encrypted receipt and AES key from the database
-		var encryptedReceipt, encryptedAESKey []byte
-		query := `SELECT Receipt, AESKey FROM payment WHERE LoanID = ?`
-		err = db.QueryRow(query, loanID).Scan(&encryptedReceipt, &encryptedAESKey)
+        // Query to retrieve all encrypted receipts and AES keys for the given LoanID
+        query := `SELECT Receipt, AESKey FROM payment WHERE LoanID = ?`
+        rows, err := db.Query(query, loanID)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error querying receipts: %v", err), http.StatusInternalServerError)
+            return
+        }
+        defer rows.Close()
+
+        var receipts []string
+        for rows.Next() {
+            var encryptedReceipt, encryptedAESKey []byte
+            if err := rows.Scan(&encryptedReceipt, &encryptedAESKey); err != nil {
+                http.Error(w, fmt.Sprintf("Error scanning receipt row: %v", err), http.StatusInternalServerError)
+                return
+            }
+
+            // Skip if Receipt or AESKey is NULL
+            if encryptedReceipt == nil || encryptedAESKey == nil {
+                log.Printf("Skipping record with NULL Receipt or AESKey for LoanID: %d", loanID)
+                continue
+            }
+
+            // Decrypt the AES key using the private key
+            aesKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
+            if err != nil {
+                log.Printf("Error decrypting AES key for LoanID %d: %v", loanID, err)
+                continue // Skip this record instead of returning an error
+            }
+
+            // Decrypt the receipt using the AES key
+            decryptedReceipt, err := decryptWithAES(encryptedReceipt, aesKey)
+            if err != nil {
+                log.Printf("Error decrypting receipt for LoanID %d: %v", loanID, err)
+                continue // Skip this record instead of returning an error
+            }
+
+            // Encode the decrypted receipt as a Base64 string
+            receipts = append(receipts, base64.StdEncoding.EncodeToString(decryptedReceipt))
+        }
+
+        // Return the receipts as a JSON response
+        response := map[string]interface{}{
+            "loanID":   loanID,
+            "receipts": receipts,
+        }
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)
+    }
+}
+
+func testRSAKeys(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        // Generate a random AES key
+        aesKey, err := generateAESKey()
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error generating AES key: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // Encrypt the AES key using the public key
+        encryptedAESKey, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, aesKey)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error encrypting AES key: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // Decrypt the AES key using the private key
+        decryptedAESKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error decrypting AES key: %v", err), http.StatusInternalServerError)
+            return
+        }
+
+        // Verify if the decrypted AES key matches the original AES key
+        if string(aesKey) != string(decryptedAESKey) {
+            http.Error(w, "Decrypted AES key does not match the original AES key", http.StatusInternalServerError)
+            return
+        }
+
+        // Respond with success
+        response := map[string]string{
+            "message": "RSA keys match and encryption/decryption works correctly",
+        }
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)
+    }
+}
+
+func DebugDecryptReceipt(db *sql.DB, privateKey *rsa.PrivateKey) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		loanID := vars["loanID"]
+
+		// Fetch data from DB
+		var encryptedAESKey []byte
+		var encryptedImage []byte
+		err := db.QueryRow("SELECT encrypted_aes_key, receipt_image FROM payment WHERE loan_id = ?", loanID).
+			Scan(&encryptedAESKey, &encryptedImage)
 		if err != nil {
-			if err == sql.ErrNoRows {
-				http.Error(w, "No receipt found for the given LoanID", http.StatusNotFound)
-				return
-			}
-			http.Error(w, fmt.Sprintf("Error querying receipt: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("DB error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		// Decrypt the AES key using the private key
+		// Decrypt AES key
 		aesKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error decrypting AES key: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("RSA decryption failed: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		// Decrypt the receipt using the AES key
-		decryptedReceipt, err := decryptWithAES(encryptedReceipt, aesKey)
+		log.Printf("🔐 Decrypted AES Key (base64): %s", base64.StdEncoding.EncodeToString(aesKey))
+
+		// Now decrypt the image using AES
+		block, err := aes.NewCipher(aesKey)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Error decrypting receipt: %v", err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Error creating AES cipher: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		// Send the decrypted receipt as a response
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Write(decryptedReceipt)
+		if len(encryptedImage) < aes.BlockSize {
+			http.Error(w, "Encrypted image too short", http.StatusInternalServerError)
+			return
+		}
+
+		iv := encryptedImage[:aes.BlockSize]
+		cipherText := encryptedImage[aes.BlockSize:]
+
+		mode := cipher.NewCBCDecrypter(block, iv)
+		decrypted := make([]byte, len(cipherText))
+		mode.CryptBlocks(decrypted, cipherText)
+
+		// Remove padding (PKCS#7)
+		padLen := int(decrypted[len(decrypted)-1])
+		if padLen > aes.BlockSize || padLen == 0 {
+			http.Error(w, "Invalid padding", http.StatusInternalServerError)
+			return
+		}
+		decrypted = decrypted[:len(decrypted)-padLen]
+
+		log.Printf("Successfully decrypted image for LoanID %s (size: %d bytes)", loanID, len(decrypted))
+
+		// Return debug info
+		response := map[string]string{
+			"loanID":            loanID,
+			"aesKeyBase64":      base64.StdEncoding.EncodeToString(aesKey),
+			"decryptedImgSize":  fmt.Sprintf("%d", len(decrypted)),
+			"decryptionStatus":  "success",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 	}
 }
+
 
 // PAYMENT
 func confirmPaymentDetails(db *Database) http.HandlerFunc {
@@ -1217,14 +1360,14 @@ func enableCORS(h http.Handler) http.Handler {
 
 // Main function to set up server and routes
 func main() {
-	// Generate RSA keys
-	privateKey, publicKey, err := GenerateRSAKeys()
-	if err != nil {
-		log.Fatalf("Failed to generate RSA keys: %v", err)
-	}
 
-	// Load the RSA public key from file
-	publicKey, err = loadPublicKey("public_key.pem")
+	// Load the RSA keys from files
+	privateKey, err := loadPrivateKey("private_key.pem")
+	if err != nil {
+		log.Fatalf("Failed to load RSA private key: %v", err)
+	}
+	
+	publicKey, err := loadPublicKey("public_key.pem")
 	if err != nil {
 		log.Fatalf("Failed to load RSA public key: %v", err)
 	}
@@ -1237,6 +1380,10 @@ func main() {
 	defer db.Close()
 
 	database := &Database{db}
+
+	// Set up router for debug-decrypt
+	r := mux.NewRouter()
+	r.HandleFunc("/debug-decrypt/{loanID}", DebugDecryptReceipt(database.DB, privateKey)).Methods("GET")
 
 	//ACCOUNT
 
@@ -1606,6 +1753,7 @@ func main() {
 	// Register your handlers
 	http.Handle("/insertPayment", enableCORS(http.HandlerFunc(insertPayment(database, publicKey))))
 	http.Handle("/decryptReceipt", enableCORS(http.HandlerFunc(decryptReceiptHandler(database, privateKey))))
+	http.Handle("/testRSAKeys", enableCORS(http.HandlerFunc(testRSAKeys(privateKey, publicKey))))
 	http.Handle("/handlePaymentApproval", enableCORS(http.HandlerFunc(handlePaymentApproval(database))))
 
 	http.Handle("/checkPaymentDetails", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
