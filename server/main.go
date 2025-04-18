@@ -1216,7 +1216,7 @@ func handlePaymentApproval(db *Database) http.HandlerFunc {
 
 		// If the payment is accepted, check if the loan status needs to be updated
 		if action == "accept" {
-			// Check if all payments for the loan are accepted
+			// Retrieve the LoanID associated with the PaymentID
 			var loanID int
 			err = db.QueryRow(`SELECT LoanID FROM payment WHERE PaymentID = ?`, paymentID).Scan(&loanID)
 			if err != nil {
@@ -1224,20 +1224,14 @@ func handlePaymentApproval(db *Database) http.HandlerFunc {
 				return
 			}
 
-			var pendingPayments int
-			err = db.QueryRow(`SELECT COUNT(*) FROM payment WHERE LoanID = ? AND CheckedStatus != 'accepted'`, loanID).Scan(&pendingPayments)
-			if err != nil {
-				http.Error(w, fmt.Sprintf("Error checking pending payments: %v", err), http.StatusInternalServerError)
-				return
-			}
+			
 
-			// If no pending payments, update the loan status to complete
-			if pendingPayments == 0 {
-				_, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
-				if err != nil {
-					http.Error(w, fmt.Sprintf("Error updating loan status to complete: %v", err), http.StatusInternalServerError)
-					return
-				}
+			
+			_, err = db.Exec(`UPDATE loan SET Status = 'Completed' WHERE LoanID = ?`, loanID)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Error updating loan status to accepted: %v", err), http.StatusInternalServerError)
+				return
+				
 			}
 		}
 
