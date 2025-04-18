@@ -94,10 +94,10 @@ export default function AdminUserInfo() {
     }
   }, [debtDetails, receiptsFetched]);
 
-  const handleApproval = async (loanID: number, action: string) => {
+  const handleApproval = async (paymentID: number, action: string) => {
     try {
       const response = await fetch(
-        `http://localhost:8080/handlePaymentApproval?loanID=${loanID}&action=${action}`,
+        `http://localhost:8080/handlePaymentApproval?paymentID=${paymentID}&action=${action}`,
         {
           method: "POST",
         }
@@ -361,14 +361,11 @@ export default function AdminUserInfo() {
                                       className="border rounded-md w-64 h-auto"
                                     />
                                     {status === "waiting" ? (
-                                      <div className="flex justify-between mt-2">
+                                      <div className="flex justify-around mt-2">
                                         <button
                                           className="w-auto bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md text-white"
                                           onClick={() =>
-                                            handleApproval(
-                                              debt.loan_id,
-                                              "accept"
-                                            )
+                                            handleApproval(paymentId, "accept")
                                           }
                                         >
                                           Approve
@@ -376,10 +373,7 @@ export default function AdminUserInfo() {
                                         <button
                                           className="w-auto bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md text-white"
                                           onClick={() =>
-                                            handleApproval(
-                                              debt.loan_id,
-                                              "reject"
-                                            )
+                                            handleApproval(paymentId, "reject")
                                           }
                                         >
                                           Reject
