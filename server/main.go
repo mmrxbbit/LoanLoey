@@ -1224,14 +1224,11 @@ func handlePaymentApproval(db *Database) http.HandlerFunc {
 				return
 			}
 
-			
-
-			
-			_, err = db.Exec(`UPDATE loan SET Status = 'Completed' WHERE LoanID = ?`, loanID)
+			_, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Error updating loan status to accepted: %v", err), http.StatusInternalServerError)
 				return
-				
+
 			}
 		}
 
