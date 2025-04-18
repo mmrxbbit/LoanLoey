@@ -729,22 +729,22 @@ func loadPublicKey(filename string) (*rsa.PublicKey, error) {
 }
 
 func loadPrivateKey(filename string) (*rsa.PrivateKey, error) {
-    keyBytes, err := os.ReadFile(filename)
-    if err != nil {
-        return nil, fmt.Errorf("failed to read private key file: %w", err)
-    }
+	keyBytes, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key file: %w", err)
+	}
 
-    block, _ := pem.Decode(keyBytes)
-    if block == nil || block.Type != "RSA PRIVATE KEY" {
-        return nil, fmt.Errorf("failed to decode PEM block containing private key")
-    }
+	block, _ := pem.Decode(keyBytes)
+	if block == nil || block.Type != "RSA PRIVATE KEY" {
+		return nil, fmt.Errorf("failed to decode PEM block containing private key")
+	}
 
-    privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-    if err != nil {
-        return nil, fmt.Errorf("failed to parse private key: %w", err)
-    }
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
 
-    return privateKey, nil
+	return privateKey, nil
 }
 
 // Generate a random AES key
@@ -806,8 +806,8 @@ func decryptWithAES(ciphertext, key []byte) ([]byte, error) {
 }
 
 func decryptReceiptHandler(db *Database, privateKey *rsa.PrivateKey) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        log.Printf("Received request to decrypt receipts for LoanID: %s", r.URL.Query().Get("loanID"))
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Received request to decrypt receipts for LoanID: %s", r.URL.Query().Get("loanID"))
 
 		// Check if the request method is GET
 		if r.Method != http.MethodGet {
@@ -829,93 +829,93 @@ func decryptReceiptHandler(db *Database, privateKey *rsa.PrivateKey) http.Handle
 			return
 		}
 
-        // Query to retrieve all encrypted receipts and AES keys for the given LoanID
-        query := `SELECT Receipt, AESKey FROM payment WHERE LoanID = ?`
-        rows, err := db.Query(query, loanID)
-        if err != nil {
-            http.Error(w, fmt.Sprintf("Error querying receipts: %v", err), http.StatusInternalServerError)
-            return
-        }
-        defer rows.Close()
+		// Query to retrieve all encrypted receipts and AES keys for the given LoanID
+		query := `SELECT Receipt, AESKey FROM payment WHERE LoanID = ?`
+		rows, err := db.Query(query, loanID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error querying receipts: %v", err), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
 
-        var receipts []string
-        for rows.Next() {
-            var encryptedReceipt, encryptedAESKey []byte
-            if err := rows.Scan(&encryptedReceipt, &encryptedAESKey); err != nil {
-                http.Error(w, fmt.Sprintf("Error scanning receipt row: %v", err), http.StatusInternalServerError)
-                return
-            }
+		var receipts []string
+		for rows.Next() {
+			var encryptedReceipt, encryptedAESKey []byte
+			if err := rows.Scan(&encryptedReceipt, &encryptedAESKey); err != nil {
+				http.Error(w, fmt.Sprintf("Error scanning receipt row: %v", err), http.StatusInternalServerError)
+				return
+			}
 
-            // Skip if Receipt or AESKey is NULL
-            if encryptedReceipt == nil || encryptedAESKey == nil {
-                log.Printf("Skipping record with NULL Receipt or AESKey for LoanID: %d", loanID)
-                continue
-            }
+			// Skip if Receipt or AESKey is NULL
+			if encryptedReceipt == nil || encryptedAESKey == nil {
+				log.Printf("Skipping record with NULL Receipt or AESKey for LoanID: %d", loanID)
+				continue
+			}
 
-            // Decrypt the AES key using the private key
-            aesKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
-            if err != nil {
-                log.Printf("Error decrypting AES key for LoanID %d: %v", loanID, err)
-                continue // Skip this record instead of returning an error
-            }
+			// Decrypt the AES key using the private key
+			aesKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
+			if err != nil {
+				log.Printf("Error decrypting AES key for LoanID %d: %v", loanID, err)
+				continue // Skip this record instead of returning an error
+			}
 
-            // Decrypt the receipt using the AES key
-            decryptedReceipt, err := decryptWithAES(encryptedReceipt, aesKey)
-            if err != nil {
-                log.Printf("Error decrypting receipt for LoanID %d: %v", loanID, err)
-                continue // Skip this record instead of returning an error
-            }
+			// Decrypt the receipt using the AES key
+			decryptedReceipt, err := decryptWithAES(encryptedReceipt, aesKey)
+			if err != nil {
+				log.Printf("Error decrypting receipt for LoanID %d: %v", loanID, err)
+				continue // Skip this record instead of returning an error
+			}
 
-            // Encode the decrypted receipt as a Base64 string
-            receipts = append(receipts, base64.StdEncoding.EncodeToString(decryptedReceipt))
-        }
+			// Encode the decrypted receipt as a Base64 string
+			receipts = append(receipts, base64.StdEncoding.EncodeToString(decryptedReceipt))
+		}
 
-        // Return the receipts as a JSON response
-        response := map[string]interface{}{
-            "loanID":   loanID,
-            "receipts": receipts,
-        }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
-    }
+		// Return the receipts as a JSON response
+		response := map[string]interface{}{
+			"loanID":   loanID,
+			"receipts": receipts,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
 }
 
 func testRSAKeys(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) http.HandlerFunc {
-    return func(w http.ResponseWriter, r *http.Request) {
-        // Generate a random AES key
-        aesKey, err := generateAESKey()
-        if err != nil {
-            http.Error(w, fmt.Sprintf("Error generating AES key: %v", err), http.StatusInternalServerError)
-            return
-        }
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Generate a random AES key
+		aesKey, err := generateAESKey()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error generating AES key: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-        // Encrypt the AES key using the public key
-        encryptedAESKey, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, aesKey)
-        if err != nil {
-            http.Error(w, fmt.Sprintf("Error encrypting AES key: %v", err), http.StatusInternalServerError)
-            return
-        }
+		// Encrypt the AES key using the public key
+		encryptedAESKey, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, aesKey)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error encrypting AES key: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-        // Decrypt the AES key using the private key
-        decryptedAESKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
-        if err != nil {
-            http.Error(w, fmt.Sprintf("Error decrypting AES key: %v", err), http.StatusInternalServerError)
-            return
-        }
+		// Decrypt the AES key using the private key
+		decryptedAESKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Error decrypting AES key: %v", err), http.StatusInternalServerError)
+			return
+		}
 
-        // Verify if the decrypted AES key matches the original AES key
-        if string(aesKey) != string(decryptedAESKey) {
-            http.Error(w, "Decrypted AES key does not match the original AES key", http.StatusInternalServerError)
-            return
-        }
+		// Verify if the decrypted AES key matches the original AES key
+		if string(aesKey) != string(decryptedAESKey) {
+			http.Error(w, "Decrypted AES key does not match the original AES key", http.StatusInternalServerError)
+			return
+		}
 
-        // Respond with success
-        response := map[string]string{
-            "message": "RSA keys match and encryption/decryption works correctly",
-        }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
-    }
+		// Respond with success
+		response := map[string]string{
+			"message": "RSA keys match and encryption/decryption works correctly",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
 }
 
 func DebugDecryptReceipt(db *sql.DB, privateKey *rsa.PrivateKey) http.HandlerFunc {
@@ -973,16 +973,15 @@ func DebugDecryptReceipt(db *sql.DB, privateKey *rsa.PrivateKey) http.HandlerFun
 
 		// Return debug info
 		response := map[string]string{
-			"loanID":            loanID,
-			"aesKeyBase64":      base64.StdEncoding.EncodeToString(aesKey),
-			"decryptedImgSize":  fmt.Sprintf("%d", len(decrypted)),
-			"decryptionStatus":  "success",
+			"loanID":           loanID,
+			"aesKeyBase64":     base64.StdEncoding.EncodeToString(aesKey),
+			"decryptedImgSize": fmt.Sprintf("%d", len(decrypted)),
+			"decryptionStatus": "success",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
 	}
 }
-
 
 // PAYMENT
 func confirmPaymentDetails(db *Database) http.HandlerFunc {
@@ -1173,7 +1172,7 @@ func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
 
 func handlePaymentApproval(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request to approve/reject payment for LoanID: %s", r.URL.Query().Get("loanID"))
+		log.Printf("Received request to approve/reject payment for PaymentID: %s", r.URL.Query().Get("paymentID"))
 
 		// Check if the request method is POST
 		if r.Method != http.MethodPost {
@@ -1181,18 +1180,18 @@ func handlePaymentApproval(db *Database) http.HandlerFunc {
 			return
 		}
 
-		// Retrieve LoanID and the action (accept/reject) from the query parameters
-		loanIDStr := r.URL.Query().Get("loanID")
+		// Retrieve PaymentID and the action (accept/reject) from the query parameters
+		paymentIDStr := r.URL.Query().Get("paymentID")
 		action := r.URL.Query().Get("action")
-		if loanIDStr == "" || action == "" {
-			http.Error(w, "LoanID and action are required", http.StatusBadRequest)
+		if paymentIDStr == "" || action == "" {
+			http.Error(w, "PaymentID and action are required", http.StatusBadRequest)
 			return
 		}
 
-		// Convert LoanID to integer
-		loanID, err := strconv.Atoi(loanIDStr)
+		// Convert PaymentID to integer
+		paymentID, err := strconv.Atoi(paymentIDStr)
 		if err != nil {
-			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
+			http.Error(w, "Invalid PaymentID format", http.StatusBadRequest)
 			return
 		}
 
@@ -1208,25 +1207,43 @@ func handlePaymentApproval(db *Database) http.HandlerFunc {
 			checkedStatus = "accepted"
 		}
 
-		// Update payment checked status
-		_, err = db.Exec(`UPDATE payment SET CheckedStatus = ? WHERE LoanID = ?`, checkedStatus, loanID)
+		// Update payment checked status for the specific PaymentID
+		_, err = db.Exec(`UPDATE payment SET CheckedStatus = ? WHERE PaymentID = ?`, checkedStatus, paymentID)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Error updating payment checked status: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		// If the payment is accepted, update the loan status to complete
+		// If the payment is accepted, check if the loan status needs to be updated
 		if action == "accept" {
-			_, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
+			// Check if all payments for the loan are accepted
+			var loanID int
+			err = db.QueryRow(`SELECT LoanID FROM payment WHERE PaymentID = ?`, paymentID).Scan(&loanID)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("Error updating loan status to complete: %v", err), http.StatusInternalServerError)
+				http.Error(w, fmt.Sprintf("Error retrieving LoanID: %v", err), http.StatusInternalServerError)
 				return
+			}
+
+			var pendingPayments int
+			err = db.QueryRow(`SELECT COUNT(*) FROM payment WHERE LoanID = ? AND CheckedStatus != 'accepted'`, loanID).Scan(&pendingPayments)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Error checking pending payments: %v", err), http.StatusInternalServerError)
+				return
+			}
+
+			// If no pending payments, update the loan status to complete
+			if pendingPayments == 0 {
+				_, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
+				if err != nil {
+					http.Error(w, fmt.Sprintf("Error updating loan status to complete: %v", err), http.StatusInternalServerError)
+					return
+				}
 			}
 		}
 
 		// Prepare a success response
 		response := map[string]string{
-			"message": fmt.Sprintf("Payment %s and loan status updated", action),
+			"message": fmt.Sprintf("Payment %s and status updated", action),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -1366,7 +1383,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load RSA private key: %v", err)
 	}
-	
+
 	publicKey, err := loadPublicKey("public_key.pem")
 	if err != nil {
 		log.Fatalf("Failed to load RSA public key: %v", err)
