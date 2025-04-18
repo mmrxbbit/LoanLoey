@@ -11,6 +11,9 @@ export default function AdminUserInfo() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [receiptsFetched, setReceiptsFetched] = useState(false);
+  const [allPaymentStatus, setPaymentStatus] = useState<Record<number, any[]>>(
+    {}
+  );
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -67,8 +70,16 @@ export default function AdminUserInfo() {
             return { ...debt, receipts };
           })
         );
+
+        // Also build the map for loan_id => paymentStatus
+        const statusMap: Record<number, string> = {};
+        updatedDebtDetails.forEach((debt) => {
+          statusMap[debt.loan_id] = debt.paymentStatus;
+        });
+
         setDebtDetails(updatedDebtDetails);
         setReceiptsFetched(true); // Mark receipts as fetched
+        console.log(debtDetails);
       } catch (error) {
         console.error("Error fetching debt details with receipts:", error);
       }
@@ -113,6 +124,44 @@ export default function AdminUserInfo() {
       return [];
     }
   };
+
+  useEffect(() => {
+    const fetchPaymentStatus = async () => {
+      try {
+        const statusData = await Promise.all(
+          debtDetails.map(async (debt) => {
+            const res = await fetch(
+              `http://localhost:8080/getPaymentStatus?loanID=${debt.loan_id}`
+            );
+            if (!res.ok) throw new Error("Failed to fetch payment status");
+            const data = await res.json();
+            return {
+              loan_id: debt.loan_id,
+              paymentStatuses: data, // assuming it's an array
+            };
+          })
+        );
+
+        // Reduce to a map: { loan_id: [...statuses] }
+        const statusMap = statusData.reduce(
+          (acc, { loan_id, paymentStatuses }) => {
+            acc[loan_id] = paymentStatuses;
+            return acc;
+          },
+          {} as Record<number, any[]>
+        );
+
+        setPaymentStatus(statusMap);
+        console.log("Fetched payment status map:", statusMap);
+      } catch (err) {
+        console.error("Error fetching all payment statuses:", err);
+      }
+    };
+
+    if (debtDetails.length > 0) {
+      fetchPaymentStatus();
+    }
+  }, [debtDetails]);
 
   if (loading) {
     return (
@@ -265,48 +314,79 @@ export default function AdminUserInfo() {
 
             {/* Scrollable container */}
             <div className="gap-4 grid grid-cols-1 pr-4 max-h-[641px] overflow-y-auto">
-              {debtDetails.map((debt, index) => (
-                <div key={index} className="p-4 border rounded-md">
-                  <p className="font-semibold">Total: {debt.total}</p>
-                  <p>Initial Amount: {debt.initial_amount}</p>
-                  <p>Interest Rate: {debt.interest_rate}</p>
-                  <p>Interest: {debt.interest}</p>
-                  <p>Due Date: {debt.due_date_time}</p>
-                  <p>Status: {debt.status}</p>
+              {debtDetails.map((debt) => {
+                const loanPayments = Object.values(
+                  allPaymentStatus[debt.loan_id] || {}
+                );
+                console.log("allpayment", allPaymentStatus);
+                console.log("Loan ID: ", debt.loan_id);
+                console.log("payment: ", loanPayments);
 
-                  {/* Receipt Images */}
-                  <div className="mt-4">
-                    <p className="font-semibold">Payment Receipts:</p>
-                    {debt.receipts?.map((receipt, receiptIndex) => (
-                      <div key={receiptIndex} className="mt-2">
-                        <img
-                          src={`data:image/jpeg;base64,${receipt}`}
-                          alt={`Receipt ${receiptIndex + 1}`}
-                          className="border rounded-md w-full h-auto"
-                        />
-                        <div className="flex justify-between mt-2">
-                          <button
-                            className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md text-white"
-                            onClick={() =>
-                              handleApproval(debt.loan_id, "accept")
-                            }
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md text-white"
-                            onClick={() =>
-                              handleApproval(debt.loan_id, "reject")
-                            }
-                          >
-                            Reject
-                          </button>
-                        </div>
+                return (
+                  <div key={debt.loan_id} className="p-4 border rounded-md">
+                    <div className="grid grid-cols-3 grid-rows-2">
+                      <p className="font-semibold">Total: {debt.total}</p>
+                      <p>Interest: {debt.interest}</p>
+                      <p>Due Date: {debt.due_date_time}</p>
+                      <p>Initial Amount: {debt.initial_amount}</p>
+                      <p>Interest Rate: {debt.interest_rate}</p>
+                      <p>Status: {debt.status}</p>
+                    </div>
+
+                    {/* Receipt Images */}
+                    <div className="mt-4">
+                      <p className="font-semibold">Payment Receipts:</p>
+                      <div className="flex flex-row overflow-x-auto gap-6 max-w-full">
+                        {Array.isArray(debt.receipts) &&
+                          [...debt.receipts]
+                            .slice() // clone the array
+                            .reverse() // reverse it to show latest first
+                            .map((receipt, index) => {
+                              const status = loanPayments[index];
+                              const paymentId = loanPayments[1];
+
+                              return (
+                                <div
+                                  key={index}
+                                  className="mt-2 mb-2 flex-shrink-0 text-center"
+                                >
+                                  <img
+                                    src={`data:image/jpeg;base64,${receipt}`}
+                                    alt={`Receipt ${paymentId}`}
+                                    className="border rounded-md w-64 h-auto"
+                                  />
+                                  {status === "waiting" ? (
+                                    <div className="flex justify-between mt-2">
+                                      <button
+                                        className="w-auto bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md text-white"
+                                        onClick={() =>
+                                          handleApproval(debt.loan_id, "accept")
+                                        }
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        className="w-auto bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md text-white"
+                                        onClick={() =>
+                                          handleApproval(debt.loan_id, "reject")
+                                        }
+                                      >
+                                        Reject
+                                      </button>
+                                    </div>
+                                  ) : typeof status === "string" ? (
+                                    <p className="mt-1">{status}</p>
+                                  ) : (
+                                    <div></div>
+                                  )}
+                                </div>
+                              );
+                            })}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

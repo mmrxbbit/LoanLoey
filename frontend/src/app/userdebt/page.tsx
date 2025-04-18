@@ -91,6 +91,7 @@ function DebtInfo(props: Props) {
 
       const paymentID = data.PaymentID;
       const paymentStatus = data.CheckedStatus;
+      //console.log(paymentID, ": ", paymentStatus); //check status
 
       if (paymentID) {
         switch (paymentStatus) {
@@ -100,6 +101,9 @@ function DebtInfo(props: Props) {
             );
             setPaymentColor("text-red-600");
             setPay(true);
+            break;
+          case "accepted":
+            setPaymentNote("");
             break;
           default:
             setPaymentNote("Waiting for approval");
@@ -147,7 +151,7 @@ function DebtInfo(props: Props) {
     }
   };
 
-  // close overlay 1 open overlay 2
+  // Handle confirm payment
   const confirmOverlay1 = async (event) => {
     event.preventDefault();
 
@@ -221,7 +225,7 @@ function DebtInfo(props: Props) {
 
     // Display a success message or update the UI
     alert("File selected successfully!");
-    setShowOverlay3(false); // Close overlay3
+    setShowOverlay3(false);
     setShowOverlay1(true); // Reopen overlay1
   };
 
