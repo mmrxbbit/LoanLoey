@@ -85,7 +85,11 @@ export default function AdminUserInfo() {
       }
     };
 
-    if (debtDetails.length > 0 && !receiptsFetched) {
+    if (
+      Array.isArray(debtDetails) &&
+      debtDetails.length > 0 &&
+      !receiptsFetched
+    ) {
       fetchDebtDetailsWithReceipts();
     }
   }, [debtDetails, receiptsFetched]);
@@ -158,7 +162,7 @@ export default function AdminUserInfo() {
       }
     };
 
-    if (debtDetails.length > 0) {
+    if (Array.isArray(debtDetails) && debtDetails.length > 0) {
       fetchPaymentStatus();
     }
   }, [debtDetails]);
@@ -314,79 +318,89 @@ export default function AdminUserInfo() {
 
             {/* Scrollable container */}
             <div className="gap-4 grid grid-cols-1 pr-4 max-h-[641px] overflow-y-auto">
-              {debtDetails.map((debt) => {
-                const loanPayments = Object.values(
-                  allPaymentStatus[debt.loan_id] || {}
-                );
-                console.log("allpayment", allPaymentStatus);
-                console.log("Loan ID: ", debt.loan_id);
-                console.log("payment: ", loanPayments);
+              {Array.isArray(debtDetails) && debtDetails.length > 0 ? (
+                debtDetails.map((debt) => {
+                  const loanPayments = Object.values(
+                    allPaymentStatus[debt.loan_id] || {}
+                  );
+                  console.log("allpayment", allPaymentStatus);
+                  console.log("Loan ID: ", debt.loan_id);
+                  console.log("payment: ", loanPayments);
 
-                return (
-                  <div key={debt.loan_id} className="p-4 border rounded-md">
-                    <div className="grid grid-cols-3 grid-rows-2">
-                      <p className="font-semibold">Total: {debt.total}</p>
-                      <p>Interest: {debt.interest}</p>
-                      <p>Due Date: {debt.due_date_time}</p>
-                      <p>Initial Amount: {debt.initial_amount}</p>
-                      <p>Interest Rate: {debt.interest_rate}</p>
-                      <p>Status: {debt.status}</p>
-                    </div>
+                  return (
+                    <div key={debt.loan_id} className="p-4 border rounded-md">
+                      <div className="grid grid-cols-3 grid-rows-2">
+                        <p className="font-semibold">Total: {debt.total}</p>
+                        <p>Interest: {debt.interest}</p>
+                        <p>Due Date: {debt.due_date_time}</p>
+                        <p>Initial Amount: {debt.initial_amount}</p>
+                        <p>Interest Rate: {debt.interest_rate}</p>
+                        <p>Status: {debt.status}</p>
+                      </div>
 
-                    {/* Receipt Images */}
-                    <div className="mt-4">
-                      <p className="font-semibold">Payment Receipts:</p>
-                      <div className="flex flex-row overflow-x-auto gap-6 max-w-full">
-                        {Array.isArray(debt.receipts) &&
-                          [...debt.receipts]
-                            .slice() // clone the array
-                            .reverse() // reverse it to show latest first
-                            .map((receipt, index) => {
-                              const status = loanPayments[index];
-                              const paymentId = loanPayments[1];
+                      {/* Receipt Images */}
+                      <div className="mt-4">
+                        <p className="font-semibold">Payment Receipts:</p>
+                        <div className="flex flex-row overflow-x-auto gap-6 max-w-full">
+                          {Array.isArray(debt.receipts) &&
+                            [...debt.receipts]
+                              .slice() // clone the array
+                              .reverse() // reverse it to show latest first
+                              .map((receipt, index) => {
+                                const status = loanPayments[index];
+                                const paymentId = loanPayments[1];
 
-                              return (
-                                <div
-                                  key={index}
-                                  className="mt-2 mb-2 flex-shrink-0 text-center"
-                                >
-                                  <img
-                                    src={`data:image/jpeg;base64,${receipt}`}
-                                    alt={`Receipt ${paymentId}`}
-                                    className="border rounded-md w-64 h-auto"
-                                  />
-                                  {status === "waiting" ? (
-                                    <div className="flex justify-between mt-2">
-                                      <button
-                                        className="w-auto bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md text-white"
-                                        onClick={() =>
-                                          handleApproval(debt.loan_id, "accept")
-                                        }
-                                      >
-                                        Approve
-                                      </button>
-                                      <button
-                                        className="w-auto bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md text-white"
-                                        onClick={() =>
-                                          handleApproval(debt.loan_id, "reject")
-                                        }
-                                      >
-                                        Reject
-                                      </button>
-                                    </div>
-                                  ) : typeof status === "string" ? (
-                                    <p className="mt-1">{status}</p>
-                                  ) : (
-                                    <div></div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                return (
+                                  <div
+                                    key={index}
+                                    className="mt-2 mb-2 flex-shrink-0 text-center"
+                                  >
+                                    <img
+                                      src={`data:image/jpeg;base64,${receipt}`}
+                                      alt={`Receipt ${paymentId}`}
+                                      className="border rounded-md w-64 h-auto"
+                                    />
+                                    {status === "waiting" ? (
+                                      <div className="flex justify-between mt-2">
+                                        <button
+                                          className="w-auto bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md text-white"
+                                          onClick={() =>
+                                            handleApproval(
+                                              debt.loan_id,
+                                              "accept"
+                                            )
+                                          }
+                                        >
+                                          Approve
+                                        </button>
+                                        <button
+                                          className="w-auto bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md text-white"
+                                          onClick={() =>
+                                            handleApproval(
+                                              debt.loan_id,
+                                              "reject"
+                                            )
+                                          }
+                                        >
+                                          Reject
+                                        </button>
+                                      </div>
+                                    ) : typeof status === "string" ? (
+                                      <p className="mt-1">{status}</p>
+                                    ) : (
+                                      <div></div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <p className="text-gray-500">No debts found.</p>
+              )}
             </div>
           </div>
         </div>
