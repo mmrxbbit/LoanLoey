@@ -95,7 +95,7 @@ func calculateInterestRate(amount float64) float64 {
 func calculateLoanDetails(amount float64, dueDate time.Time) (totalAmount float64, interestAmount float64, interestRate float64) {
 	interestRate = calculateInterestRate(amount)
 	durationDays := int(time.Until(dueDate).Hours() / 24)
-	if (durationDays > 365) {
+	if durationDays > 365 {
 		interestRate += 0.01 // long-term loan penalty
 		interestRate = roundToTwoDecimalPlaces(interestRate)
 	}
@@ -107,50 +107,6 @@ func calculateLoanDetails(amount float64, dueDate time.Time) (totalAmount float6
 
 func roundToTwoDecimalPlaces(value float64) float64 {
 	return math.Round(value*100) / 100
-}
-
-// EncryptString encrypts a string using AES
-func EncryptString(plainText, key string) (string, error) {
-	block, err := aes.NewCipher([]byte(key))
-	if err != nil {
-		return "", err
-	}
-
-	plainBytes := []byte(plainText)
-	nonce := make([]byte, aes.BlockSize)
-	if _, err := rand.Read(nonce); err != nil {
-		return "", err
-	}
-
-	cipherText := make([]byte, len(plainBytes))
-	stream := cipher.NewCTR(block, nonce)
-	stream.XORKeyStream(cipherText, plainBytes)
-
-	// Combine nonce and ciphertext
-	result := append(nonce, cipherText...)
-	return base64.StdEncoding.EncodeToString(result), nil
-}
-
-// DecryptString decrypts a string using AES
-func DecryptString(cipherText, key string) (string, error) {
-	data, err := base64.StdEncoding.DecodeString(cipherText)
-	if err != nil {
-		return "", err
-	}
-
-	block, err := aes.NewCipher([]byte(key))
-	if err != nil {
-		return "", err
-	}
-
-	nonce := data[:aes.BlockSize]
-	cipherBytes := data[aes.BlockSize:]
-
-	plainBytes := make([]byte, len(cipherBytes))
-	stream := cipher.NewCTR(block, nonce)
-	stream.XORKeyStream(plainBytes, cipherBytes)
-
-	return string(plainBytes), nil
 }
 
 //ACCOUNT
@@ -176,17 +132,6 @@ func (db *Database) Signup(userAccount UserAccount) error {
 			return fmt.Errorf("hashing password: %w", err)
 		}
 	}
-
-	// Encrypt sensitive fields
-	encryptionKey := "your-32-byte-long-encryption-key" // Replace with a secure key
-	userAccount.FirstName, _ = EncryptString(userAccount.FirstName, encryptionKey)
-	userAccount.LastName, _ = EncryptString(userAccount.LastName, encryptionKey)
-	userAccount.IDCard, _ = EncryptString(userAccount.IDCard, encryptionKey)
-	userAccount.DOB, _ = EncryptString(userAccount.DOB, encryptionKey)
-	userAccount.PhoneNo, _ = EncryptString(userAccount.PhoneNo, encryptionKey)
-	userAccount.Address, _ = EncryptString(userAccount.Address, encryptionKey)
-	userAccount.BankName, _ = EncryptString(userAccount.BankName, encryptionKey)
-	userAccount.BankAccNo, _ = EncryptString(userAccount.BankAccNo, encryptionKey)
 
 	// Insert account into the database
 	accountQuery := `INSERT INTO account (Username, PasswordHash) VALUES (?, ?)`
@@ -328,16 +273,6 @@ func (db *Database) Login(username, password string) (map[string]interface{}, er
 
 // UpdateUserInfo updates user information
 func (db *Database) UpdateUserInfo(userID int, userAccount UserAccount) error {
-	encryptionKey := "your-32-byte-long-encryption-key" // Replace with a secure key
-	userAccount.FirstName, _ = EncryptString(userAccount.FirstName, encryptionKey)
-	userAccount.LastName, _ = EncryptString(userAccount.LastName, encryptionKey)
-	userAccount.IDCard, _ = EncryptString(userAccount.IDCard, encryptionKey)
-	userAccount.DOB, _ = EncryptString(userAccount.DOB, encryptionKey)
-	userAccount.PhoneNo, _ = EncryptString(userAccount.PhoneNo, encryptionKey)
-	userAccount.Address, _ = EncryptString(userAccount.Address, encryptionKey)
-	userAccount.BankName, _ = EncryptString(userAccount.BankName, encryptionKey)
-	userAccount.BankAccNo, _ = EncryptString(userAccount.BankAccNo, encryptionKey)
-
 	query := `UPDATE user SET FirstName = ?, LastName = ?, IDCard = ?, DOB = ?, PhoneNo = ?, Address = ?, BankName = ?, BankAccNo = ? 
 			  WHERE UserID = ?`
 	_, err := db.Exec(query, userAccount.FirstName, userAccount.LastName, userAccount.IDCard, userAccount.DOB, userAccount.PhoneNo,
@@ -366,16 +301,6 @@ func (db *Database) GetUserInfo(userID int) (*UserAccount, error) {
 	if err != nil {
 		return nil, fmt.Errorf("querying user info: %w", err)
 	}
-
-	encryptionKey := "your-32-byte-long-encryption-key" // Replace with a secure key
-	userAccount.FirstName, _ = DecryptString(userAccount.FirstName, encryptionKey)
-	userAccount.LastName, _ = DecryptString(userAccount.LastName, encryptionKey)
-	userAccount.IDCard, _ = DecryptString(userAccount.IDCard, encryptionKey)
-	userAccount.DOB, _ = DecryptString(userAccount.DOB, encryptionKey)
-	userAccount.PhoneNo, _ = DecryptString(userAccount.PhoneNo, encryptionKey)
-	userAccount.Address, _ = DecryptString(userAccount.Address, encryptionKey)
-	userAccount.BankName, _ = DecryptString(userAccount.BankName, encryptionKey)
-	userAccount.BankAccNo, _ = DecryptString(userAccount.BankAccNo, encryptionKey)
 
 	return &userAccount, nil
 }
@@ -473,36 +398,36 @@ func (db *Database) CreateAdmin(admin Admin) error {
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM account WHERE Username = ?)`
 	err := db.QueryRow(query, admin.Username).Scan(&exists)
-	if (err != nil) {
+	if err != nil {
 		return fmt.Errorf("checking username existence: %w", err)
 	}
-	if (exists) {
+	if exists {
 		return fmt.Errorf("username %s is already taken", admin.Username)
 	}
 
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(admin.Password), bcrypt.DefaultCost)
-	if (err != nil) {
+	if err != nil {
 		return fmt.Errorf("hashing password: %w", err)
 	}
 
 	// Insert account into the database
 	accountQuery := `INSERT INTO account (Username, PasswordHash) VALUES (?, ?)`
 	result, err := db.Exec(accountQuery, admin.Username, hashedPassword)
-	if (err != nil) {
+	if err != nil {
 		return fmt.Errorf("inserting account: %w", err)
 	}
 
 	// Get the last insert ID
 	accountID, err := result.LastInsertId()
-	if (err != nil) {
+	if err != nil {
 		return fmt.Errorf("getting last insert ID: %w", err)
 	}
 
 	// Insert admin details into the loansharkadmin table
 	adminQuery := `INSERT INTO loansharkadmin (AccountID, FirstName, LastName) VALUES (?, ?, ?)`
 	_, err = db.Exec(adminQuery, accountID, admin.FirstName, admin.LastName)
-	if (err != nil) {
+	if err != nil {
 		return fmt.Errorf("inserting loansharkadmin: %w", err)
 	}
 
@@ -515,7 +440,7 @@ func (db *Database) CreateAdmin(admin Admin) error {
 func (db *Database) GetTotalLoan() (float64, error) {
 	query := `SELECT Amount, Duedate FROM loan WHERE Status = 'pending'`
 	rows, err := db.Query(query)
-	if (err != nil) {
+	if err != nil {
 		return 0, fmt.Errorf("querying loans: %w", err)
 	}
 	defer rows.Close()
@@ -526,12 +451,12 @@ func (db *Database) GetTotalLoan() (float64, error) {
 		var amount float64
 		var dueDateStr string
 
-		if (err := rows.Scan(&amount, &dueDateStr); err != nil) {
+		if err := rows.Scan(&amount, &dueDateStr); err != nil {
 			return 0, fmt.Errorf("scanning loan row: %w", err)
 		}
 
 		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
-		if (err != nil) {
+		if err != nil {
 			return 0, fmt.Errorf("parsing due date: %w", err)
 		}
 
@@ -539,7 +464,7 @@ func (db *Database) GetTotalLoan() (float64, error) {
 		totalLoan += totalAmount
 	}
 
-	if (err := rows.Err(); err != nil) {
+	if err := rows.Err(); err != nil {
 		return 0, fmt.Errorf("error iterating rows: %w", err)
 	}
 
@@ -550,7 +475,7 @@ func (db *Database) GetTotalLoan() (float64, error) {
 func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 	query := "SELECT Amount, Duedate FROM loan WHERE UserID = ? AND Status = 'pending'"
 	rows, err := db.Query(query, userID)
-	if (err != nil) {
+	if err != nil {
 		return 0, fmt.Errorf("querying loans: %w", err)
 	}
 	defer rows.Close()
@@ -561,12 +486,12 @@ func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 		var amount float64
 		var dueDateStr string
 
-		if (err := rows.Scan(&amount, &dueDateStr); err != nil) {
+		if err := rows.Scan(&amount, &dueDateStr); err != nil {
 			return 0, fmt.Errorf("scanning loan row: %w", err)
 		}
 
 		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
-		if (err != nil) {
+		if err != nil {
 			return 0, fmt.Errorf("parsing due date: %w", err)
 		}
 
@@ -574,7 +499,7 @@ func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 		totalLoan += totalAmount
 	}
 
-	if (err := rows.Err(); err != nil) {
+	if err := rows.Err(); err != nil {
 		return 0, fmt.Errorf("error iterating rows: %w", err)
 	}
 
@@ -585,7 +510,7 @@ func (db *Database) GetUserTotalLoan(userID int) (float64, error) {
 func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 	query := `SELECT Amount, Duedate FROM loan WHERE UserID = ?`
 	rows, err := db.Query(query, userID)
-	if (err != nil) {
+	if err != nil {
 		return 0, fmt.Errorf("querying loans: %w", err)
 	}
 	defer rows.Close()
@@ -598,12 +523,12 @@ func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 		var amount float64
 		var dueDateStr string
 
-		if (err := rows.Scan(&amount, &dueDateStr); err != nil) {
+		if err := rows.Scan(&amount, &dueDateStr); err != nil {
 			return 0, fmt.Errorf("scanning loan row: %w", err)
 		}
 
 		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
-		if (err != nil) {
+		if err != nil {
 			return 0, fmt.Errorf("parsing due date: %w", err)
 		}
 
@@ -611,12 +536,12 @@ func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 		totalLoan += totalAmount
 	}
 
-	if (err := rows.Err(); err != nil) {
+	if err := rows.Err(); err != nil {
 		return 0, fmt.Errorf("error iterating rows: %w", err)
 	}
 
 	// If no rows were found, return 0 without an error
-	if (!found) {
+	if !found {
 		return 0, nil
 	}
 
@@ -625,14 +550,14 @@ func (db *Database) GetUserTotalLoanHistory(userID int) (float64, error) {
 
 func getUserLoans(db *Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		userIDStr := r.URL.Query().Get("userID")
 		userID, err := strconv.Atoi(userIDStr)
-		if (err != nil || userID <= 0) {
+		if err != nil || userID <= 0 {
 			http.Error(w, "Invalid user ID", http.StatusBadRequest)
 			return
 		}
@@ -640,7 +565,7 @@ func getUserLoans(db *Database) http.HandlerFunc {
 		// Updated query to include LoanID
 		query := `SELECT LoanID, Amount, Duedate, Status FROM loan WHERE UserID = ?`
 		rows, err := db.Query(query, userID)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("querying loans: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -653,13 +578,13 @@ func getUserLoans(db *Database) http.HandlerFunc {
 			var amount float64
 			var dueDateStr, status string
 
-			if (err := rows.Scan(&loanID, &amount, &dueDateStr, &status); err != nil) {
+			if err := rows.Scan(&loanID, &amount, &dueDateStr, &status); err != nil {
 				http.Error(w, fmt.Sprintf("scanning loan row: %v", err), http.StatusInternalServerError)
 				return
 			}
 
 			dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
-			if (err != nil) {
+			if err != nil {
 				http.Error(w, fmt.Sprintf("parsing due date: %v", err), http.StatusInternalServerError)
 				return
 			}
@@ -684,7 +609,7 @@ func getUserLoans(db *Database) http.HandlerFunc {
 
 func (db *Database) checkLoanDetails(request LoanRequest) (LoanResponse, error) {
 	dueDateTime, err := time.Parse("2006-01-02 15:04", request.DueDateTime)
-	if (err != nil) {
+	if err != nil {
 		return LoanResponse{}, fmt.Errorf("parsing DueDateTime: %w", err)
 	}
 
@@ -703,14 +628,14 @@ func (db *Database) checkLoanDetails(request LoanRequest) (LoanResponse, error) 
 func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 	fmt.Println("Entering /applyForLoan handler")
 	dueDateTime, err := time.Parse("2006-01-02 15:04", request.DueDateTime)
-	if (err != nil) {
+	if err != nil {
 		return LoanResponse{}, fmt.Errorf("parsing DueDateTime: %w", err)
 	}
 
 	totalAmount, interestAmount, interestRate := calculateLoanDetails(request.InitialAmount, dueDateTime)
 
 	loc, err := time.LoadLocation("Asia/Bangkok")
-	if (err != nil) {
+	if err != nil {
 		return LoanResponse{}, fmt.Errorf("loading location: %w", err)
 	}
 	doProcess := time.Now().In(loc)
@@ -718,7 +643,7 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 
 	query := `INSERT INTO loan (UserID, Amount, Duedate, DOProcess, Status) VALUES (?, ?, ?, ?, ?)`
 	_, err = db.Exec(query, request.UserID, request.InitialAmount, dueDateTime.Format("2006-01-02 15:04:05"), doProcess.Format("2006-01-02 15:04:05"), "pending")
-	if (err != nil) {
+	if err != nil {
 		return LoanResponse{}, fmt.Errorf("inserting loan: %w", err)
 	}
 
@@ -737,13 +662,13 @@ func (db *Database) applyForLoan(request LoanRequest) (LoanResponse, error) {
 func GenerateRSAKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	// Generate a private key
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if (err != nil) {
+	if err != nil {
 		return nil, nil, fmt.Errorf("error generating private key: %w", err)
 	}
 
 	// Save the private key to a file
 	privateKeyFile, err := os.Create("private_key.pem")
-	if (err != nil) {
+	if err != nil {
 		return nil, nil, fmt.Errorf("error creating private key file: %w", err)
 	}
 	defer privateKeyFile.Close()
@@ -757,13 +682,13 @@ func GenerateRSAKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	// Save the public key to a file
 	publicKey := &privateKey.PublicKey
 	publicKeyFile, err := os.Create("public_key.pem")
-	if (err != nil) {
+	if err != nil {
 		return nil, nil, fmt.Errorf("error creating public key file: %w", err)
 	}
 	defer publicKeyFile.Close()
 
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
-	if (err != nil) {
+	if err != nil {
 		return nil, nil, fmt.Errorf("error marshaling public key: %w", err)
 	}
 	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
@@ -778,25 +703,25 @@ func GenerateRSAKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 func loadPublicKey(filename string) (*rsa.PublicKey, error) {
 	// Read the public key file
 	keyBytes, err := os.ReadFile(filename)
-	if (err != nil) {
+	if err != nil {
 		return nil, fmt.Errorf("failed to read public key file: %w", err)
 	}
 
 	// Decode the PEM block
 	block, _ := pem.Decode(keyBytes)
-	if (block == nil || block.Type != "PUBLIC KEY") {
+	if block == nil || block.Type != "PUBLIC KEY" {
 		return nil, fmt.Errorf("failed to decode PEM block containing public key")
 	}
 
 	// Parse the public key
 	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if (err != nil) {
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse public key: %w", err)
 	}
 
 	// Assert the type to *rsa.PublicKey
 	rsaPublicKey, ok := publicKey.(*rsa.PublicKey)
-	if (!ok) {
+	if !ok {
 		return nil, fmt.Errorf("not an RSA public key")
 	}
 
@@ -805,17 +730,17 @@ func loadPublicKey(filename string) (*rsa.PublicKey, error) {
 
 func loadPrivateKey(filename string) (*rsa.PrivateKey, error) {
 	keyBytes, err := os.ReadFile(filename)
-	if (err != nil) {
+	if err != nil {
 		return nil, fmt.Errorf("failed to read private key file: %w", err)
 	}
 
 	block, _ := pem.Decode(keyBytes)
-	if (block == nil || block.Type != "RSA PRIVATE KEY") {
+	if block == nil || block.Type != "RSA PRIVATE KEY" {
 		return nil, fmt.Errorf("failed to decode PEM block containing private key")
 	}
 
 	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if (err != nil) {
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse private key: %w", err)
 	}
 
@@ -826,7 +751,7 @@ func loadPrivateKey(filename string) (*rsa.PrivateKey, error) {
 func generateAESKey() ([]byte, error) {
 	key := make([]byte, 32) // 256-bit AES key
 	_, err := rand.Read(key)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 	return key, nil
@@ -835,18 +760,18 @@ func generateAESKey() ([]byte, error) {
 // Encrypt data using AES-GCM
 func encryptWithAES(data, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 
 	gcm, err := cipher.NewGCM(block)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 
 	nonce := make([]byte, gcm.NonceSize())
 	_, err = io.ReadFull(rand.Reader, nonce)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -857,23 +782,23 @@ func encryptWithAES(data, key []byte) ([]byte, error) {
 // Decrypt data using AES-GCM
 func decryptWithAES(ciphertext, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 
 	gcm, err := cipher.NewGCM(block)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 
 	nonceSize := gcm.NonceSize()
-	if (len(ciphertext) < nonceSize) {
+	if len(ciphertext) < nonceSize {
 		return nil, errors.New("ciphertext too short")
 	}
 
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -885,21 +810,21 @@ func decryptReceiptHandler(db *Database, privateKey *rsa.PrivateKey) http.Handle
 		log.Printf("Received request to decrypt receipts for LoanID: %s", r.URL.Query().Get("loanID"))
 
 		// Check if the request method is GET
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		// Retrieve LoanID from query parameters
 		loanIDStr := r.URL.Query().Get("loanID")
-		if (loanIDStr == "") {
+		if loanIDStr == "" {
 			http.Error(w, "LoanID is required", http.StatusBadRequest)
 			return
 		}
 
 		// Convert LoanID to integer
 		loanID, err := strconv.Atoi(loanIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
 			return
 		}
@@ -907,7 +832,7 @@ func decryptReceiptHandler(db *Database, privateKey *rsa.PrivateKey) http.Handle
 		// Query to retrieve all encrypted receipts and AES keys for the given LoanID
 		query := `SELECT Receipt, AESKey FROM payment WHERE LoanID = ?`
 		rows, err := db.Query(query, loanID)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Error querying receipts: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -916,27 +841,27 @@ func decryptReceiptHandler(db *Database, privateKey *rsa.PrivateKey) http.Handle
 		var receipts []string
 		for rows.Next() {
 			var encryptedReceipt, encryptedAESKey []byte
-			if (err := rows.Scan(&encryptedReceipt, &encryptedAESKey); err != nil) {
+			if err := rows.Scan(&encryptedReceipt, &encryptedAESKey); err != nil {
 				http.Error(w, fmt.Sprintf("Error scanning receipt row: %v", err), http.StatusInternalServerError)
 				return
 			}
 
 			// Skip if Receipt or AESKey is NULL
-			if (encryptedReceipt == nil || encryptedAESKey == nil) {
+			if encryptedReceipt == nil || encryptedAESKey == nil {
 				log.Printf("Skipping record with NULL Receipt or AESKey for LoanID: %d", loanID)
 				continue
 			}
 
 			// Decrypt the AES key using the private key
 			aesKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
-			if (err != nil) {
+			if err != nil {
 				log.Printf("Error decrypting AES key for LoanID %d: %v", loanID, err)
 				continue // Skip this record instead of returning an error
 			}
 
 			// Decrypt the receipt using the AES key
 			decryptedReceipt, err := decryptWithAES(encryptedReceipt, aesKey)
-			if (err != nil) {
+			if err != nil {
 				log.Printf("Error decrypting receipt for LoanID %d: %v", loanID, err)
 				continue // Skip this record instead of returning an error
 			}
@@ -959,27 +884,27 @@ func testRSAKeys(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) http.Hand
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Generate a random AES key
 		aesKey, err := generateAESKey()
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Error generating AES key: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Encrypt the AES key using the public key
 		encryptedAESKey, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, aesKey)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Error encrypting AES key: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Decrypt the AES key using the private key
 		decryptedAESKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Error decrypting AES key: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Verify if the decrypted AES key matches the original AES key
-		if (string(aesKey) != string(decryptedAESKey)) {
+		if string(aesKey) != string(decryptedAESKey) {
 			http.Error(w, "Decrypted AES key does not match the original AES key", http.StatusInternalServerError)
 			return
 		}
@@ -1003,14 +928,14 @@ func DebugDecryptReceipt(db *sql.DB, privateKey *rsa.PrivateKey) http.HandlerFun
 		var encryptedImage []byte
 		err := db.QueryRow("SELECT encrypted_aes_key, receipt_image FROM payment WHERE loan_id = ?", loanID).
 			Scan(&encryptedAESKey, &encryptedImage)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("DB error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Decrypt AES key
 		aesKey, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedAESKey)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("RSA decryption failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1019,12 +944,12 @@ func DebugDecryptReceipt(db *sql.DB, privateKey *rsa.PrivateKey) http.HandlerFun
 
 		// Now decrypt the image using AES
 		block, err := aes.NewCipher(aesKey)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Error creating AES cipher: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		if (len(encryptedImage) < aes.BlockSize) {
+		if len(encryptedImage) < aes.BlockSize {
 			http.Error(w, "Encrypted image too short", http.StatusInternalServerError)
 			return
 		}
@@ -1038,7 +963,7 @@ func DebugDecryptReceipt(db *sql.DB, privateKey *rsa.PrivateKey) http.HandlerFun
 
 		// Remove padding (PKCS#7)
 		padLen := int(decrypted[len(decrypted)-1])
-		if (padLen > aes.BlockSize || padLen == 0) {
+		if padLen > aes.BlockSize || padLen == 0 {
 			http.Error(w, "Invalid padding", http.StatusInternalServerError)
 			return
 		}
@@ -1064,21 +989,21 @@ func confirmPaymentDetails(db *Database) http.HandlerFunc {
 		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
 
 		// Check if the request method is GET
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		// Retrieve LoanID from query parameters
 		loanIDStr := r.URL.Query().Get("loanID")
-		if (loanIDStr == "") {
+		if loanIDStr == "" {
 			http.Error(w, "LoanID is required", http.StatusBadRequest)
 			return
 		}
 
 		// Convert LoanID to integer
 		loanID, err := strconv.Atoi(loanIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
 			return
 		}
@@ -1090,10 +1015,10 @@ func confirmPaymentDetails(db *Database) http.HandlerFunc {
 		err = db.QueryRow(query, loanID).Scan(&amount, &dueDateStr)
 
 		// Check for errors in the query
-		if (err == sql.ErrNoRows) {
+		if err == sql.ErrNoRows {
 			http.Error(w, "Loan not found", http.StatusNotFound)
 			return
-		} else if (err != nil) {
+		} else if err != nil {
 			log.Printf("Error querying loan: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
@@ -1101,7 +1026,7 @@ func confirmPaymentDetails(db *Database) http.HandlerFunc {
 
 		// Parse the due date
 		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Parsing due date: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1125,35 +1050,35 @@ func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
 		log.Printf("Received request to insert payment for LoanID: %s", r.URL.Query().Get("loanID"))
 
 		// Check if the request method is POST
-		if (r.Method != http.MethodPost) {
+		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		// Parse the multipart form to handle file uploads
 		err := r.ParseMultipartForm(50 << 20) // Limit file size to 50 MB
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Error parsing form data", http.StatusBadRequest)
 			return
 		}
 
 		// Retrieve LoanID from query parameters
 		loanIDStr := r.URL.Query().Get("loanID")
-		if (loanIDStr == "") {
+		if loanIDStr == "" {
 			http.Error(w, "LoanID is required", http.StatusBadRequest)
 			return
 		}
 
 		// Convert LoanID to integer
 		loanID, err := strconv.Atoi(loanIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
 			return
 		}
 
 		// Retrieve the uploaded file
 		file, _, err := r.FormFile("receipt")
-		if (err != nil) {
+		if err != nil {
 			log.Printf("Error retrieving the file: %v", err)
 			http.Error(w, "Error retrieving the file", http.StatusBadRequest)
 			return
@@ -1162,7 +1087,7 @@ func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
 
 		// Read the file content
 		fileBytes, err := io.ReadAll(file)
-		if (err != nil) {
+		if err != nil {
 			log.Printf("Error reading the file: %v", err)
 			http.Error(w, "Error reading the file", http.StatusInternalServerError)
 			return
@@ -1170,7 +1095,7 @@ func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
 
 		// Generate a random AES key
 		aesKey, err := generateAESKey()
-		if (err != nil) {
+		if err != nil {
 			log.Printf("Error generating AES key: %v", err)
 			http.Error(w, "Error generating AES key", http.StatusInternalServerError)
 			return
@@ -1178,7 +1103,7 @@ func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
 
 		// Encrypt the file content using AES
 		encryptedFile, err := encryptWithAES(fileBytes, aesKey)
-		if (err != nil) {
+		if err != nil {
 			log.Printf("Error encrypting file with AES: %v", err)
 			http.Error(w, "Error encrypting file", http.StatusInternalServerError)
 			return
@@ -1186,7 +1111,7 @@ func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
 
 		// Encrypt the AES key using RSA
 		encryptedAESKey, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, aesKey)
-		if (err != nil) {
+		if err != nil {
 			log.Printf("Error encrypting AES key with RSA: %v", err)
 			http.Error(w, "Error encrypting AES key", http.StatusInternalServerError)
 			return
@@ -1196,8 +1121,8 @@ func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
 		query := `SELECT Duedate FROM loan WHERE LoanID = ?`
 		var dueDateStr string
 		err = db.QueryRow(query, loanID).Scan(&dueDateStr)
-		if (err != nil) {
-			if (err == sql.ErrNoRows) {
+		if err != nil {
+			if err == sql.ErrNoRows {
 				http.Error(w, "Loan not found", http.StatusNotFound)
 				return
 			}
@@ -1207,14 +1132,14 @@ func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
 
 		// Parse the due date
 		dueDate, err := time.Parse("2006-01-02 15:04:05", dueDateStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Error parsing due date: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// Get current Thai time
 		tz, err := time.LoadLocation("Asia/Bangkok")
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Error loading timezone", http.StatusInternalServerError)
 			return
 		}
@@ -1222,14 +1147,14 @@ func insertPayment(db *Database, publicKey *rsa.PublicKey) http.HandlerFunc {
 
 		// Determine payment status
 		status := "intime"
-		if (dopayment.After(dueDate)) {
+		if dopayment.After(dueDate) {
 			status = "late"
 		}
 
 		// Insert the payment record into the payment table, including the encrypted file and AES key
 		_, err = db.Exec(`INSERT INTO payment (LoanID, DOPayment, Status, CheckedStatus, Receipt, AESKey) VALUES (?, ?, ?, ?, ?, ?)`,
 			loanID, dopayment.Format("2006-01-02 15:04:05"), status, "waiting", encryptedFile, encryptedAESKey)
-		if (err != nil) {
+		if err != nil {
 			log.Printf("Error inserting payment record: %v", err)
 			http.Error(w, fmt.Sprintf("Error inserting payment record: %v", err), http.StatusInternalServerError)
 			return
@@ -1250,7 +1175,7 @@ func handlePaymentApproval(db *Database) http.HandlerFunc {
 		log.Printf("Received request to approve/reject payment for PaymentID: %s", r.URL.Query().Get("paymentID"))
 
 		// Check if the request method is POST
-		if (r.Method != http.MethodPost) {
+		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
@@ -1258,55 +1183,52 @@ func handlePaymentApproval(db *Database) http.HandlerFunc {
 		// Retrieve PaymentID and the action (accept/reject) from the query parameters
 		paymentIDStr := r.URL.Query().Get("paymentID")
 		action := r.URL.Query().Get("action")
-		if (paymentIDStr == "" || action == "") {
+		if paymentIDStr == "" || action == "" {
 			http.Error(w, "PaymentID and action are required", http.StatusBadRequest)
 			return
 		}
 
 		// Convert PaymentID to integer
 		paymentID, err := strconv.Atoi(paymentIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid PaymentID format", http.StatusBadRequest)
 			return
 		}
 
 		// Check if action is valid (accept/reject)
-		if (action != "accept" && action != "reject") {
+		if action != "accept" && action != "reject" {
 			http.Error(w, "Invalid action, must be either 'accept' or 'reject'", http.StatusBadRequest)
 			return
 		}
 
 		// Update the checked status based on the action
 		checkedStatus := "rejected"
-		if (action == "accept") {
+		if action == "accept" {
 			checkedStatus = "accepted"
 		}
 
 		// Update payment checked status for the specific PaymentID
 		_, err = db.Exec(`UPDATE payment SET CheckedStatus = ? WHERE PaymentID = ?`, checkedStatus, paymentID)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Error updating payment checked status: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// If the payment is accepted, check if the loan status needs to be updated
-		if (action == "accept") {
+		if action == "accept" {
 			// Retrieve the LoanID associated with the PaymentID
 			var loanID int
 			err = db.QueryRow(`SELECT LoanID FROM payment WHERE PaymentID = ?`, paymentID).Scan(&loanID)
-			if (err != nil) {
+			if err != nil {
 				http.Error(w, fmt.Sprintf("Error retrieving LoanID: %v", err), http.StatusInternalServerError)
 				return
 			}
 
-			
-
-			
-			_, err = db.Exec(`UPDATE loan SET Status = 'Completed' WHERE LoanID = ?`, loanID)
-			if (err != nil) {
+			_, err = db.Exec(`UPDATE loan SET Status = 'complete' WHERE LoanID = ?`, loanID)
+			if err != nil {
 				http.Error(w, fmt.Sprintf("Error updating loan status to accepted: %v", err), http.StatusInternalServerError)
 				return
-				
+
 			}
 		}
 
@@ -1326,8 +1248,8 @@ func (db *Database) checkPaymentDetails(loanID int) (map[string]interface{}, err
 	var doPayment, status string
 
 	err := db.QueryRow(query, loanID).Scan(&loanIDFromDB, &doPayment, &status)
-	if (err != nil) {
-		if (err == sql.ErrNoRows) {
+	if err != nil {
+		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("no payment found for LoanID %d", loanID)
 		}
 		return nil, fmt.Errorf("querying payment details: %w", err)
@@ -1348,8 +1270,8 @@ func CheckAdminPassword(db *Database, password string) (bool, error) {
 	// Query to get the stored password hash from the adminpassword table
 	query := `SELECT PasswordHash FROM adminpassword LIMIT 1`
 	err := db.QueryRow(query).Scan(&storedHash)
-	if (err != nil) {
-		if (err == sql.ErrNoRows) {
+	if err != nil {
+		if err == sql.ErrNoRows {
 			return false, fmt.Errorf("no admin password found")
 		}
 		return false, fmt.Errorf("querying admin password: %w", err)
@@ -1360,7 +1282,7 @@ func CheckAdminPassword(db *Database, password string) (bool, error) {
 	fmt.Printf("Provided Hash: %s\n", password)
 
 	// Compare the hashed provided password with the stored hash
-	if (err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil) {
+	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
 		return false, nil // Password does not match
 	}
 
@@ -1374,13 +1296,13 @@ func getPaymentStatus(db *Database) http.HandlerFunc {
 
 		// Parse loanID from query parameters
 		loanIDStr := r.URL.Query().Get("loanID")
-		if (loanIDStr == "") {
+		if loanIDStr == "" {
 			http.Error(w, "loanID is required", http.StatusBadRequest)
 			return
 		}
 
 		loanID, err := strconv.Atoi(loanIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid loanID format", http.StatusBadRequest)
 			return
 		}
@@ -1398,8 +1320,8 @@ func getPaymentStatus(db *Database) http.HandlerFunc {
 		var checkedStatus string
 
 		err = db.QueryRow(query, loanID).Scan(&paymentID, &checkedStatus)
-		if (err != nil) {
-			if (err == sql.ErrNoRows) {
+		if err != nil {
+			if err == sql.ErrNoRows {
 				// Return null if no payment is found
 				response := map[string]interface{}{
 					"PaymentID":     nil,
@@ -1434,7 +1356,7 @@ func enableCORS(h http.Handler) http.Handler {
 		// w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		// Handle preflight requests (OPTIONS)
-		if (r.Method == http.MethodOptions) {
+		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
@@ -1449,18 +1371,18 @@ func main() {
 
 	// Load the RSA keys from files
 	privateKey, err := loadPrivateKey("private_key.pem")
-	if (err != nil) {
+	if err != nil {
 		log.Fatalf("Failed to load RSA private key: %v", err)
 	}
 
 	publicKey, err := loadPublicKey("public_key.pem")
-	if (err != nil) {
+	if err != nil {
 		log.Fatalf("Failed to load RSA public key: %v", err)
 	}
 
 	// Connect to the database
 	db, err := sql.Open("mysql", "root:root@tcp(localhost:8889)/loanloey")
-	if (err != nil) {
+	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
@@ -1475,18 +1397,18 @@ func main() {
 
 	// HTTP route for user signup
 	http.Handle("/signup", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodPost) {
+		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		var userAccount UserAccount
-		if (err := json.NewDecoder(r.Body).Decode(&userAccount); err != nil) {
+		if err := json.NewDecoder(r.Body).Decode(&userAccount); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		if (err := database.Signup(userAccount); err != nil) {
+		if err := database.Signup(userAccount); err != nil {
 			http.Error(w, fmt.Sprintf("Signup failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1498,27 +1420,27 @@ func main() {
 
 	// HTTP route to delete an account
 	http.Handle("/deleteAccount", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodDelete) {
+		if r.Method != http.MethodDelete {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		// Parse userID from query parameters
 		userIDStr := r.URL.Query().Get("userID")
-		if (userIDStr == "") {
+		if userIDStr == "" {
 			http.Error(w, "UserID is required", http.StatusBadRequest)
 			return
 		}
 
 		// Convert userID to integer
 		userID, err := strconv.Atoi(userIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
 			return
 		}
 
 		// Call DeleteAccount with userID
-		if (err := database.DeleteAccount(userID); err != nil) {
+		if err := database.DeleteAccount(userID); err != nil {
 			http.Error(w, fmt.Sprintf("DeleteAccount failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1532,7 +1454,7 @@ func main() {
 
 	// HTTP route for user login
 	http.Handle("/login", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodPost) {
+		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
@@ -1541,13 +1463,13 @@ func main() {
 			Username string `json:"username"`
 			Password string `json:"password"`
 		}
-		if (err := json.NewDecoder(r.Body).Decode(&credentials); err != nil) {
+		if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		role, err := database.Login(credentials.Username, credentials.Password)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Login failed: %v", err), http.StatusUnauthorized)
 			return
 		}
@@ -1568,30 +1490,30 @@ func main() {
 
 	// HTTP route to update user information
 	http.Handle("/updateUserInfo", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodPut) {
+		if r.Method != http.MethodPut {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		var userAccount UserAccount
-		if (err := json.NewDecoder(r.Body).Decode(&userAccount); err != nil) {
+		if err := json.NewDecoder(r.Body).Decode(&userAccount); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		userIDStr := r.URL.Query().Get("userID")
-		if (userIDStr == "") {
+		if userIDStr == "" {
 			http.Error(w, "UserID is required", http.StatusBadRequest)
 			return
 		}
 
 		userID, err := strconv.Atoi(userIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
 			return
 		}
 
-		if (err := database.UpdateUserInfo(userID, userAccount); err != nil) {
+		if err := database.UpdateUserInfo(userID, userAccount); err != nil {
 			http.Error(w, fmt.Sprintf("UpdateUserInfo failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1603,7 +1525,7 @@ func main() {
 
 	// HTTP route to get user information
 	http.Handle("/getUserInfo", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
@@ -1611,27 +1533,27 @@ func main() {
 		userIDStr := r.URL.Query().Get("userID")
 		log.Printf("Received UserID: %s", userIDStr)
 
-		if (userIDStr == "") {
+		if userIDStr == "" {
 			http.Error(w, "UserID is required", http.StatusBadRequest)
 			return
 		}
 
 		userID, err := strconv.Atoi(userIDStr)
-		if (err != nil) {
+		if err != nil {
 			log.Printf("Error converting UserID: %v", err)
 			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
 			return
 		}
 
 		userAccount, err := database.GetUserInfo(userID)
-		if (err != nil) {
+		if err != nil {
 			log.Printf("Failed to get user info: %v", err)
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if (err := json.NewEncoder(w).Encode(userAccount); err != nil) {
+		if err := json.NewEncoder(w).Encode(userAccount); err != nil {
 			log.Printf("Error encoding user info to JSON: %v", err)
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 			return
@@ -1640,25 +1562,25 @@ func main() {
 
 	// HTTP route to get user credit level
 	http.Handle("/getUserCreditLevel", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		userIDStr := r.URL.Query().Get("userID")
-		if (userIDStr == "") {
+		if userIDStr == "" {
 			http.Error(w, "UserID is required", http.StatusBadRequest)
 			return
 		}
 
 		userID, err := strconv.Atoi(userIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
 			return
 		}
 
 		creditLevel, err := database.GetUserCreditLevel(userID)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get credit level: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1669,13 +1591,13 @@ func main() {
 	})))
 
 	http.Handle("/getAllUserInfoForAdmin", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		users, err := database.getAllUserInfoForAdmin()
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get all user info: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1688,18 +1610,18 @@ func main() {
 	//ADMIN
 	// HTTP route for admin creation
 	http.Handle("/createAdmin", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodPost) {
+		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		var admin Admin
-		if (err := json.NewDecoder(r.Body).Decode(&admin); err != nil) {
+		if err := json.NewDecoder(r.Body).Decode(&admin); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		if (err := database.CreateAdmin(admin); err != nil) {
+		if err := database.CreateAdmin(admin); err != nil {
 			http.Error(w, fmt.Sprintf("CreateAdmin failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1712,13 +1634,13 @@ func main() {
 	//LOAN
 	// HTTP route to get total loan amount with pending status
 	http.Handle("/getTotalLoan", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		totalLoan, err := database.GetTotalLoan()
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1729,25 +1651,25 @@ func main() {
 	})))
 
 	http.Handle("/getUserTotalLoan", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		userIDStr := r.URL.Query().Get("userID")
-		if (userIDStr == "") {
+		if userIDStr == "" {
 			http.Error(w, "UserID is required", http.StatusBadRequest)
 			return
 		}
 
 		userID, err := strconv.Atoi(userIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
 			return
 		}
 
 		totalLoan, err := database.GetUserTotalLoan(userID)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1758,25 +1680,25 @@ func main() {
 	})))
 
 	http.Handle("/getUserTotalLoanHistory", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		userIDStr := r.URL.Query().Get("userID")
-		if (userIDStr == "") {
+		if userIDStr == "" {
 			http.Error(w, "UserID is required", http.StatusBadRequest)
 			return
 		}
 
 		userID, err := strconv.Atoi(userIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid UserID format", http.StatusBadRequest)
 			return
 		}
 
 		totalLoan, err := database.GetUserTotalLoanHistory(userID)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get total loan: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1788,19 +1710,19 @@ func main() {
 	http.Handle("/getUserLoans", enableCORS(http.HandlerFunc(getUserLoans(database))))
 
 	http.Handle("/checkLoanDetails", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodPost) {
+		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		var loanRequest LoanRequest
-		if (err := json.NewDecoder(r.Body).Decode(&loanRequest); err != nil) {
+		if err := json.NewDecoder(r.Body).Decode(&loanRequest); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		response, err := database.checkLoanDetails(loanRequest)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Loan info calculation failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1812,19 +1734,19 @@ func main() {
 	// / HTTP route for applying for a loan
 	http.Handle("/applyForLoan", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if (r.Method != http.MethodPost) {
+		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		var loanRequest LoanRequest
-		if (err := json.NewDecoder(r.Body).Decode(&loanRequest); err != nil) {
+		if err := json.NewDecoder(r.Body).Decode(&loanRequest); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		response, err := database.applyForLoan(loanRequest)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Loan application failed: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1843,25 +1765,25 @@ func main() {
 	http.Handle("/handlePaymentApproval", enableCORS(http.HandlerFunc(handlePaymentApproval(database))))
 
 	http.Handle("/checkPaymentDetails", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodGet) {
+		if r.Method != http.MethodGet {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
 
 		loanIDStr := r.URL.Query().Get("loanID")
-		if (loanIDStr == "") {
+		if loanIDStr == "" {
 			http.Error(w, "LoanID is required", http.StatusBadRequest)
 			return
 		}
 
 		loanID, err := strconv.Atoi(loanIDStr)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, "Invalid LoanID format", http.StatusBadRequest)
 			return
 		}
 
 		response, err := database.checkPaymentDetails(loanID)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to check payment details: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1870,7 +1792,7 @@ func main() {
 		json.NewEncoder(w).Encode(response)
 	})))
 	http.Handle("/checkAdminPassword", enableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if (r.Method != http.MethodPost) {
+		if r.Method != http.MethodPost {
 			http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 			return
 		}
@@ -1878,13 +1800,13 @@ func main() {
 		var request struct {
 			Password string `json:"password"`
 		}
-		if (err := json.NewDecoder(r.Body).Decode(&request); err != nil) {
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
 		isValid, err := CheckAdminPassword(database, request.Password)
-		if (err != nil) {
+		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to check admin password: %v", err), http.StatusInternalServerError)
 			return
 		}
@@ -1899,7 +1821,7 @@ func main() {
 	// Start the server
 
 	log.Println("Server starting on :8080")
-	if (err := http.ListenAndServe(":8080", nil); err != nil) {
+	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
